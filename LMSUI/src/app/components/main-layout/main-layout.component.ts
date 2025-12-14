@@ -18,8 +18,18 @@ import { CourseItem } from '../../models/course.model';
     </div>
   `,
   styles: [`
-    .app-container { display: flex; flex-direction: column; height: 100vh; }
-    .content-container { display: flex; flex: 1; overflow: hidden; }
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .content-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
   `]
 })
 export class MainLayoutComponent {
