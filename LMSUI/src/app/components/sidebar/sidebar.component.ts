@@ -1,4 +1,4 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
@@ -205,7 +205,7 @@ export class SidebarComponent implements OnInit {
   loading = false;
   error = '';
 
-  constructor(private courseService: CourseService) {}
+  constructor(private courseService: CourseService,private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.loadCourses();
@@ -244,6 +244,7 @@ export class SidebarComponent implements OnInit {
               if (completed === courses.length) {
                 this.dataSource.data = items;
                 this.loading = false;
+                 this.cdr.detectChanges();
               }
             },
             error: (err) => {

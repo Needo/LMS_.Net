@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -64,32 +64,30 @@ interface ScanResult {
           </button>
           
           @if (scanResult) {
-            <div class="result-summary success">
-              <mat-icon>check_circle</mat-icon>
-              <div class="result-details">
-                <h3>Scan Completed Successfully!</h3>
-                <div class="stats">
-                  <div class="stat-item">
-                    <mat-icon>school</mat-icon>
-                    <span><strong>{{ scanResult.coursesAdded }}</strong> Course(s)</span>
-                  </div>
-                  <div class="stat-item">
-                    <mat-icon>folder</mat-icon>
-                    <span><strong>{{ scanResult.foldersAdded }}</strong> Folder(s)</span>
-                  </div>
-                  <div class="stat-item">
-                    <mat-icon>insert_drive_file</mat-icon>
-                    <span><strong>{{ scanResult.filesAdded }}</strong> File(s)</span>
-                  </div>
-                </div>
-                <p class="message">{{ scanResult.message }}</p>
-                <button mat-button color="primary" (click)="goBack()">
-                  <mat-icon>visibility</mat-icon>
-                  View Courses
-                </button>
-              </div>
-            </div>
-          }
+  <div class="result-summary success">
+    <mat-icon>check_circle</mat-icon>
+    <div class="result-details">
+      <h3>Scan Completed Successfully!</h3>
+      <div class="stats">
+        <div class="stat-item">
+          <mat-icon>school</mat-icon>
+          <span><strong>{{ scanResult.coursesAdded }}</strong> Course(s)</span>
+        </div>
+        <div class="stat-item">
+          <mat-icon>folder</mat-icon>
+          <span><strong>{{ scanResult.foldersAdded }}</strong> Folder(s)</span>
+        </div>
+        <div class="stat-item">
+          <mat-icon>insert_drive_file</mat-icon>
+          <span><strong>{{ scanResult.filesAdded }}</strong> File(s)</span>
+        </div>
+      </div>
+      <p class="message">{{ scanResult.message }}</p>
+    </div>
+  </div>
+}
+
+
           
           @if (error) {
             <div class="result-summary error">
@@ -210,27 +208,31 @@ export class AdminComponent {
 
   constructor(
     private courseService: CourseService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
-  scanCourses() {
-    this.scanning = true;
-    this.scanResult = null;
-    this.error = '';
-    
-    this.courseService.scanCourses(this.rootPath).subscribe({
-      next: (response: ScanResult) => {
-        this.scanning = false;
-        this.scanResult = response;
-        console.log('Scan result:', response);
-      },
-      error: (err) => {
-        this.scanning = false;
-        this.error = err.message || 'Failed to scan courses. Please check the path and try again.';
-        console.error('Scan error:', err);
-      }
-    });
-  }
+scanCourses() {
+  this.scanning = true;
+  this.scanResult = null;
+  this.error = '';
+
+  this.courseService.scanCourses(this.rootPath).subscribe({
+    next: (response: ScanResult) => {
+      this.scanning = false;
+      this.scanResult = response;
+      this.cdr.detectChanges();
+      console.log('Scan result:', response);
+    },
+    error: (err) => {
+      this.scanning = false;
+      this.error = err.message || 'Failed to scan courses. Please check the path and try again.';
+      console.error('Scan error:', err);
+    }
+  });
+}
+
+
 
   clearError() {
     this.error = '';
