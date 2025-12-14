@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,7 +30,19 @@ import { CourseService } from '../../services/course.service';
           @if (selectedItem.type === 'document' && selectedItem.extension === '.pdf') {
             <iframe [src]="sanitizeUrl(fileUrl)" class="document"></iframe>
           }
-          @if (selectedItem.type === 'document' && selectedItem.extension !== '.pdf' || selectedItem.type === 'file') {
+          @if (selectedItem.type === 'document' && selectedItem.extension === '.txt') {
+          <pre class="document-text">{{ textContent }}</pre>
+        }
+          @if (selectedItem.type === 'document' && selectedItem.extension === '.html') {
+          <iframe [src]="sanitizeUrl(fileUrl)" class="document"></iframe>
+          }
+         @if (
+  selectedItem.type === 'document' &&
+  selectedItem.extension !== '.pdf' &&
+  selectedItem.extension !== '.txt' &&
+  selectedItem.extension !== '.html'
+  || selectedItem.type === 'file'
+) {
             <div class="file-info">
               <mat-icon>description</mat-icon>
               <p>{{ selectedItem.name }}</p>
@@ -58,12 +70,32 @@ import { CourseService } from '../../services/course.service';
 export class ViewerComponent implements OnChanges {
   @Input() selectedItem: CourseItem | null = null;
   fileUrl: string = '';
+  textContent: string = '';
 
-  constructor(private courseService: CourseService, private sanitizer: DomSanitizer) {}
+  constructor(private courseService: CourseService, private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef
+) {}
 
   ngOnChanges() {
-    if (this.selectedItem) this.fileUrl = this.courseService.getFileUrl(this.selectedItem.path);
+  if (this.selectedItem) {
+    this.fileUrl = this.courseService.getFileUrl(this.selectedItem.path);
+    this.textContent = '';
+
+    if (this.selectedItem.extension === '.txt') {
+      fetch(this.fileUrl)
+        .then(res => res.text())
+        .then(text => {
+          this.textContent = text;
+          this.cdr.detectChanges();   // 👈 forces UI update immediately
+        })
+        .catch(err => console.error('Failed to load text file', err));
+    }
+  } else {
+    this.fileUrl = '';
+    this.textContent = '';
   }
+}
+
+
 
   sanitizeUrl(url: string): SafeResourceUrl {
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
