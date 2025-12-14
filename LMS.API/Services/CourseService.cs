@@ -4,18 +4,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LMS.API.Services
 {
+    public class ScanResult
+    {
+        public int CoursesAdded { get; set; }
+        public int FoldersAdded { get; set; }
+        public int FilesAdded { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
     public interface ICourseService
     {
         Task<List<Course>> GetAllCoursesAsync();
         Task<Course?> GetCourseByIdAsync(int id);
         Task<List<CourseItem>> GetCourseItemsAsync(int courseId);
-        Task ScanCoursesAsync(string rootPath);
+        Task<ScanResult> ScanCoursesAsync(string rootPath);
     }
 
     public class CourseService : ICourseService
     {
         private readonly LMSDbContext _context;
         private readonly ILogger<CourseService> _logger;
+        private int _foldersCount = 0;
+        private int _filesCount = 0;
 
         public CourseService(LMSDbContext context, ILogger<CourseService> logger)
         {
@@ -93,7 +103,7 @@ namespace LMS.API.Services
             return result;
         }
 
-        public async Task ScanCoursesAsync(string rootPath)
+        public async Task<ScanResult> ScanCoursesAsync(string rootPath)
         {
             if (!Directory.Exists(rootPath))
             {
@@ -101,13 +111,20 @@ namespace LMS.API.Services
             }
 
             _logger.LogInformation("Starting scan of: {RootPath}", rootPath);
+            
+            // Reset counters
+            _foldersCount = 0;
+            _filesCount = 0;
 
+            // Clear existing data
             _context.CourseItems.RemoveRange(_context.CourseItems);
             _context.Courses.RemoveRange(_context.Courses);
             await _context.SaveChangesAsync();
 
             var directories = Directory.GetDirectories(rootPath);
-            _logger.LogInformation("Found {Count} directories", directories.Length);
+            _logger.LogInformation("Found {Count} course directories", directories.Length);
+
+            int coursesAdded = 0;
 
             foreach (var dir in directories)
             {
@@ -123,12 +140,24 @@ namespace LMS.API.Services
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Created course: {CourseName} (ID: {CourseId})", course.Name, course.Id);
+                coursesAdded++;
 
                 await ScanDirectoryAsync(dirInfo, course.Id, null);
             }
 
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Scan completed successfully");
+            
+            var result = new ScanResult
+            {
+                CoursesAdded = coursesAdded,
+                FoldersAdded = _foldersCount,
+                FilesAdded = _filesCount,
+                Message = $"Scan completed successfully! Added {coursesAdded} course(s), {_foldersCount} folder(s), and {_filesCount} file(s)."
+            };
+
+            _logger.LogInformation("Scan completed: {Result}", result.Message);
+            
+            return result;
         }
 
         private async Task ScanDirectoryAsync(DirectoryInfo directory, int courseId, int? parentId)
@@ -150,6 +179,7 @@ namespace LMS.API.Services
 
                     _context.CourseItems.Add(folderItem);
                     await _context.SaveChangesAsync();
+                    _foldersCount++;
 
                     await ScanDirectoryAsync(subDir, courseId, folderItem.Id);
                 }
@@ -169,6 +199,7 @@ namespace LMS.API.Services
                     };
 
                     _context.CourseItems.Add(fileItem);
+                    _filesCount++;
                 }
 
                 await _context.SaveChangesAsync();

@@ -64,17 +64,17 @@ namespace LMS.API.Controllers
         }
 
         [HttpPost("scan")]
-        public async Task<ActionResult> ScanCourses([FromBody] ScanRequest request)
+        public async Task<ActionResult<ScanResult>> ScanCourses([FromBody] ScanRequest request)
         {
             try
             {
-                await _courseService.ScanCoursesAsync(request.RootPath);
-                return Ok(new { message = "Scan completed successfully" });
+                var result = await _courseService.ScanCoursesAsync(request.RootPath);
+                return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error scanning courses");
-                return StatusCode(500, ex.Message);
+                return StatusCode(500, new { error = ex.Message });
             }
         }
     }
