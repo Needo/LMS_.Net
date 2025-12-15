@@ -1,4 +1,18 @@
-import { Component, OnInit, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+# Fix Tree Indentation and File Type Icons
+
+param(
+    [string]$RootPath = "C:\LMSSystem"
+)
+
+Write-Host "=== Fixing Tree Indentation and Icons ===" -ForegroundColor Green
+Write-Host ""
+
+Set-Location "$RootPath\LMSUI\src\app\components\sidebar"
+
+Write-Host "[1/2] Updating sidebar with proper indentation and icons..." -ForegroundColor Yellow
+
+$sidebarTs = @'
+import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NestedTreeControl } from '@angular/cdk/tree';
 import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
@@ -227,7 +241,7 @@ export class SidebarComponent implements OnInit {
   error = '';
   selectedItemId: number | null = null;
 
-  constructor(private courseService: CourseService, private cdr: ChangeDetectorRef) {}
+  constructor(private courseService: CourseService) {}
 
   ngOnInit() {
     this.loadCourses();
@@ -266,7 +280,6 @@ export class SidebarComponent implements OnInit {
               if (completed === courses.length) {
                 this.dataSource.data = items;
                 this.loading = false;
-                this.cdr.detectChanges();
               }
             },
             error: (err) => {
@@ -408,3 +421,85 @@ export class SidebarComponent implements OnInit {
     return '#757575'; // Gray for others
   }
 }
+'@
+
+Set-Content -Path "sidebar.component.ts" -Value $sidebarTs -Force
+
+Write-Host "  Sidebar updated with proper indentation and file type icons!" -ForegroundColor Green
+
+# Also update backend to recognize more file types
+Write-Host ""
+Write-Host "[2/2] Updating backend to recognize more file types..." -ForegroundColor Yellow
+
+Set-Location "$RootPath\LMS.API\Services"
+
+$serviceContent = Get-Content "CourseService.cs" -Raw
+
+$newGetFileType = @'
+        private string GetFileType(string extension)
+        {
+            var ext = extension.ToLower();
+            
+            // Video files
+            if (new[] { ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".webm", ".flv", ".m4v" }.Contains(ext))
+                return "video";
+            
+            // Audio files
+            if (new[] { ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac" }.Contains(ext))
+                return "audio";
+            
+            // Document files
+            if (new[] { ".pdf", ".doc", ".docx", ".txt", ".ppt", ".pptx", ".xls", ".xlsx" }.Contains(ext))
+                return "document";
+            
+            // eBook files
+            if (new[] { ".epub", ".mobi", ".azw", ".azw3" }.Contains(ext))
+                return "ebook";
+            
+            // Image files
+            if (new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp" }.Contains(ext))
+                return "image";
+            
+            // Code files
+            if (new[] { ".js", ".ts", ".html", ".css", ".json", ".xml", ".py", ".java", ".cs", ".cpp", ".c", ".h" }.Contains(ext))
+                return "code";
+            
+            // Archive files
+            if (new[] { ".zip", ".rar", ".7z", ".tar", ".gz" }.Contains(ext))
+                return "archive";
+            
+            return "file";
+        }
+'@
+
+# Replace the GetFileType method
+$serviceContent = $serviceContent -replace 'private string GetFileType\(string extension\)[\s\S]*?return "file";\s*}', $newGetFileType
+
+Set-Content -Path "CourseService.cs" -Value $serviceContent -Force
+
+Write-Host "  Backend updated to support more file types!" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "=== Fix Complete! ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "Changes made:" -ForegroundColor Cyan
+Write-Host "  ✓ Fixed tree indentation (24px per level)" -ForegroundColor White
+Write-Host "  ✓ Added specific icons for file types:" -ForegroundColor White
+Write-Host "    - Videos: play_circle_outline (red)" -ForegroundColor White
+Write-Host "    - Audio: audiotrack (purple)" -ForegroundColor White
+Write-Host "    - PDF: picture_as_pdf (dark red)" -ForegroundColor White
+Write-Host "    - Word: description (blue)" -ForegroundColor White
+Write-Host "    - Excel: table_chart (green)" -ForegroundColor White
+Write-Host "    - PowerPoint: slideshow (orange)" -ForegroundColor White
+Write-Host "    - eBooks (.epub, .mobi): menu_book (brown)" -ForegroundColor White
+Write-Host "    - Images: image (cyan)" -ForegroundColor White
+Write-Host "    - Text: article (gray)" -ForegroundColor White
+Write-Host "    - Code: code (gray)" -ForegroundColor White
+Write-Host "    - Archives: folder_zip (gray)" -ForegroundColor White
+Write-Host "  ✓ Added color coding for file types" -ForegroundColor White
+Write-Host "  ✓ Added selection highlight" -ForegroundColor White
+Write-Host ""
+Write-Host "Restart both API and Angular:" -ForegroundColor Yellow
+Write-Host "  API: cd LMS.API && dotnet run --urls=http://localhost:5000" -ForegroundColor Gray
+Write-Host "  UI:  cd LMSUI && ng serve" -ForegroundColor Gray
+Write-Host ""

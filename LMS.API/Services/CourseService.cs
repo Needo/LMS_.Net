@@ -210,15 +210,38 @@ namespace LMS.API.Services
             }
         }
 
-        private string GetFileType(string extension)
+                private string GetFileType(string extension)
         {
             var ext = extension.ToLower();
-            if (new[] { ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".webm" }.Contains(ext))
+            
+            // Video files
+            if (new[] { ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".webm", ".flv", ".m4v" }.Contains(ext))
                 return "video";
-            if (new[] { ".mp3", ".wav", ".ogg", ".m4a" }.Contains(ext))
+            
+            // Audio files
+            if (new[] { ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac" }.Contains(ext))
                 return "audio";
-            if (new[] { ".pdf", ".doc", ".docx", ".txt", ".ppt", ".pptx" }.Contains(ext))
+            
+            // Document files
+            if (new[] { ".pdf", ".doc", ".docx", ".txt", ".ppt", ".pptx", ".xls", ".xlsx" }.Contains(ext))
                 return "document";
+            
+            // eBook files
+            if (new[] { ".epub", ".mobi", ".azw", ".azw3" }.Contains(ext))
+                return "ebook";
+            
+            // Image files
+            if (new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp" }.Contains(ext))
+                return "image";
+            
+            // Code files
+            if (new[] { ".js", ".ts", ".html", ".css", ".json", ".xml", ".py", ".java", ".cs", ".cpp", ".c", ".h" }.Contains(ext))
+                return "code";
+            
+            // Archive files
+            if (new[] { ".zip", ".rar", ".7z", ".tar", ".gz" }.Contains(ext))
+                return "archive";
+            
             return "file";
         }
     }
