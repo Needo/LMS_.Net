@@ -22,7 +22,7 @@ namespace LMS.API.Controllers
                 memory.Position = 0;
 
                 var contentType = GetContentType(path);
-                return File(memory, contentType, Path.GetFileName(path));
+                return File(memory, contentType);
             }
             catch (Exception ex)
             {

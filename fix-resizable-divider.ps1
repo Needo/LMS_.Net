@@ -1,3 +1,17 @@
+# Fix Resizable Divider - Instant Response
+
+param(
+    [string]$RootPath = "C:\LMSSystem"
+)
+
+Write-Host "=== Fixing Resizable Divider ===" -ForegroundColor Green
+
+Set-Location "$RootPath\LMSUI\src\app\components"
+
+# Update main-layout component
+Write-Host "Updating main-layout component..." -ForegroundColor Yellow
+
+$mainLayoutTs = @'
 import { Component, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../header/header.component';
@@ -161,3 +175,41 @@ export class MainLayoutComponent {
     });
   }
 }
+'@
+
+Set-Content -Path "main-layout/main-layout.component.ts" -Value $mainLayoutTs -Force
+
+# Update sidebar to fill available width
+Write-Host "Updating sidebar to auto-expand..." -ForegroundColor Yellow
+
+$sidebarContent = Get-Content "sidebar/sidebar.component.ts" -Raw
+
+# Replace the width in sidebar styles
+$sidebarContent = $sidebarContent -replace 'width: 300px;', 'width: 100%;'
+$sidebarContent = $sidebarContent -replace '\.sidebar \{[^}]+\}', @'
+.sidebar { 
+      width: 100%;
+      height: 100%;
+      background: #f5f5f5; 
+      overflow-y: auto; 
+      padding: 16px; 
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+'@
+
+Set-Content -Path "sidebar/sidebar.component.ts" -Value $sidebarContent -Force
+
+Write-Host ""
+Write-Host "=== Fix Complete! ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "Changes made:" -ForegroundColor Cyan
+Write-Host "  ✓ Divider now responds instantly (uses NgZone for performance)" -ForegroundColor White
+Write-Host "  ✓ Sidebar auto-expands to fill available width" -ForegroundColor White
+Write-Host "  ✓ Smooth drag experience with visual feedback" -ForegroundColor White
+Write-Host "  ✓ Min width: 200px, Max width: 600px" -ForegroundColor White
+Write-Host ""
+Write-Host "Restart Angular to see changes:" -ForegroundColor Yellow
+Write-Host "  cd LMSUI && ng serve" -ForegroundColor Gray
+Write-Host ""

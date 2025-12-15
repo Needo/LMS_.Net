@@ -26,23 +26,23 @@ import { CourseService } from '../../services/course.service';
           }
           @if (selectedItem.type === 'audio') {
             <audio controls [src]="fileUrl" class="media"></audio>
-          }
+          }          
           @if (selectedItem.type === 'document' && selectedItem.extension === '.pdf') {
-            <iframe [src]="sanitizeUrl(fileUrl)" class="document"></iframe>
+          <iframe [src]="sanitizeUrl(fileUrl)" [attr.key]="selectedItem.path" class="document"></iframe>
           }
           @if (selectedItem.type === 'document' && selectedItem.extension === '.txt') {
           <pre class="document-text">{{ textContent }}</pre>
-        }
+          }
           @if (selectedItem.type === 'document' && selectedItem.extension === '.html') {
           <iframe [src]="sanitizeUrl(fileUrl)" class="document"></iframe>
           }
          @if (
-  selectedItem.type === 'document' &&
-  selectedItem.extension !== '.pdf' &&
-  selectedItem.extension !== '.txt' &&
-  selectedItem.extension !== '.html'
-  || selectedItem.type === 'file'
-) {
+              selectedItem.type === 'document' &&
+              selectedItem.extension !== '.pdf' &&
+              selectedItem.extension !== '.txt' &&
+              selectedItem.extension !== '.html'
+              || selectedItem.type === 'file'
+            ) {
             <div class="file-info">
               <mat-icon>description</mat-icon>
               <p>{{ selectedItem.name }}</p>

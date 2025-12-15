@@ -44,7 +44,7 @@ import { CourseItem } from '../../models/course.model';
           <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding matTreeNodePaddingIndent="20">
             <button mat-icon-button disabled class="tree-toggle-btn"></button>
             <span (click)="selectItem(node)" class="node-label">
-              <mat-icon class="node-icon">{{ getIcon(node.type) }}</mat-icon>
+              <mat-icon class="node-icon">{{ getIcon(node) }}</mat-icon>
               <span class="node-name">{{ node.name }}</span>
             </span>
           </mat-tree-node>
@@ -57,7 +57,7 @@ import { CourseItem } from '../../models/course.model';
                 </mat-icon>
               </button>
               <span (click)="toggleNode(node)" class="node-label">
-                <mat-icon class="node-icon">{{ getIcon(node.type) }}</mat-icon>
+                <mat-icon class="node-icon">{{ getIcon(node) }}</mat-icon>                
                 <span class="node-name">{{ node.name }}</span>
               </span>
             </div>
@@ -71,14 +71,14 @@ import { CourseItem } from '../../models/course.model';
   `,
   styles: [`
     .sidebar { 
-      width: 300px; 
-      background: #f5f5f5; 
+      width: 100%;
       height: 100%;
+      background: #f5f5f5; 
       overflow-y: auto; 
-      border-right: 1px solid #ddd; 
       padding: 16px; 
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
     }
     
     h3 { 
@@ -273,14 +273,31 @@ export class SidebarComponent implements OnInit {
     }
   }
   
-  getIcon(type: string): string {
-    const icons: any = { 
-      course: 'school', 
-      folder: 'folder', 
-      video: 'video_library', 
-      audio: 'audiotrack', 
-      document: 'description' 
-    };
-    return icons[type] || 'insert_drive_file';
+  getIcon(node: CourseItem): string {
+  if (!node) return 'insert_drive_file';
+
+  if (node.type === 'course') return 'school';
+  if (node.type === 'folder') return 'folder';
+
+  if (node.type === 'video') return 'video_library';
+  if (node.type === 'audio') return 'audiotrack';
+
+  if (node.type === 'document') {
+    switch (node.extension?.toLowerCase()) {
+      case '.pdf': return 'picture_as_pdf';
+      case '.txt': return 'article';
+      case '.html': return 'language';
+      case '.doc':
+      case '.docx': return 'description'; // or 'text_snippet'
+      case '.ppt':
+      case '.pptx': return 'slideshow';
+      case '.xls':
+      case '.xlsx': return 'table_chart';
+      default: return 'description';
+    }
   }
+
+  return 'insert_drive_file';
 }
+}
+
