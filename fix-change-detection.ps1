@@ -1,3 +1,14 @@
+# Fix Change Detection in Sidebar
+
+param(
+    [string]$RootPath = "C:\LMSSystem"
+)
+
+Write-Host "=== Fixing Change Detection ===" -ForegroundColor Green
+
+Set-Location "$RootPath\LMSUI\src\app\components\sidebar"
+
+$sidebarTs = @'
 import { Component, OnInit, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NestedTreeControl } from '@angular/cdk/tree';
@@ -144,7 +155,9 @@ import { CourseItem } from '../../models/course.model';
       min-height: 36px;
     }
 
-    .tree-children { padding-left: 24px; }
+    .tree-children {
+      padding-left: 0;
+    }
     
     .tree-node-wrapper {
       display: flex;
@@ -414,4 +427,21 @@ export class SidebarComponent implements OnInit {
     return '#757575'; // Gray for others
   }
 }
+'@
 
+Set-Content -Path "sidebar.component.ts" -Value $sidebarTs -Force
+
+Write-Host ""
+Write-Host "=== Change Detection Fixed! ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "Changes made:" -ForegroundColor Cyan
+Write-Host "  ✓ Added ChangeDetectorRef back" -ForegroundColor White
+Write-Host "  ✓ Added cdr.detectChanges() in critical places:" -ForegroundColor White
+Write-Host "    - After setting loading = true" -ForegroundColor White
+Write-Host "    - After loading completes" -ForegroundColor White
+Write-Host "    - On errors" -ForegroundColor White
+Write-Host "    - When selecting items" -ForegroundColor White
+Write-Host ""
+Write-Host "Restart Angular:" -ForegroundColor Yellow
+Write-Host "  cd LMSUI && ng serve" -ForegroundColor Gray
+Write-Host ""
