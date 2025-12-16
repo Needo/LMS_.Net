@@ -206,20 +206,28 @@ export class ViewerComponent implements OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['selectedItem'] && this.selectedItem) {
-      if (this.previousItemId !== this.selectedItem.id) {
-        this.previousItemId = this.selectedItem.id;
+  // Only react if selectedItem actually changed AND it's not a folder/course
+  if (changes['selectedItem']) {
+    const currentItem = changes['selectedItem'].currentValue;
+    const previousItem = changes['selectedItem'].previousValue;
+    
+    // Check if it's actually a different item
+    if (currentItem && currentItem.id !== this.previousItemId) {
+      // Only load if it's not a folder or course
+      if (currentItem.type !== 'folder' && currentItem.type !== 'course') {
+        this.previousItemId = currentItem.id;
         this.textContent = '';
         this.fileUrl = '';
         this.cdr.detectChanges();
         this.loadContent();
       }
-    } else if (!this.selectedItem) {
+    } else if (!currentItem) {
       this.fileUrl = '';
       this.textContent = '';
       this.previousItemId = null;
     }
   }
+}
 
   private loadContent() {
     if (!this.selectedItem) return;

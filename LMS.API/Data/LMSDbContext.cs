@@ -9,6 +9,7 @@ namespace LMS.API.Data
 
         public DbSet<Course> Courses { get; set; }
         public DbSet<CourseItem> CourseItems { get; set; }
+        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,3 +27,4 @@ namespace LMS.API.Data
         }
     }
 }
+

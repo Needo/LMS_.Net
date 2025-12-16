@@ -20,6 +20,7 @@ builder.Services.AddDbContext<LMSDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddCors(options =>
 {
@@ -45,3 +46,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
