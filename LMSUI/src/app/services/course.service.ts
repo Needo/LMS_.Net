@@ -16,6 +16,10 @@ export class CourseService {
     return this.http.get<CourseItem[]>(`${this.apiUrl}/courses/${courseId}/items`);
   }
   
+  getFolderContents(folderId: number): Observable<CourseItem[]> {
+    return this.http.get<CourseItem[]>(`${this.apiUrl}/courses/folders/${folderId}/contents`);
+  }
+  
   scanCourses(rootPath: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/courses/scan`, { rootPath });
   }

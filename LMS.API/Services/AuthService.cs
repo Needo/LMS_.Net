@@ -47,6 +47,7 @@ namespace LMS.API.Services
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
+                Role = user.Role,
                 Token = GenerateToken(user.Id)
             };
         }
@@ -73,6 +74,7 @@ namespace LMS.API.Services
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Sex = request.Sex,
+                Role = request.Role,
                 CreatedDate = DateTime.Now
             };
 
@@ -91,6 +93,7 @@ namespace LMS.API.Services
             user.FirstName = request.FirstName;
             user.LastName = request.LastName;
             user.Sex = request.Sex;
+            user.Role = request.Role;
 
             if (!string.IsNullOrEmpty(request.NewPassword))
             {

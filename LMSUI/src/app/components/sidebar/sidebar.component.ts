@@ -55,17 +55,23 @@ import { CourseItem } from '../../models/course.model';
           <!-- Branch nodes (folders/courses) -->
           <mat-nested-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding [matTreeNodePaddingIndent]="24">
             <div class="tree-node-wrapper">
-              <button mat-icon-button matTreeNodeToggle class="tree-toggle-btn">
+              <button mat-icon-button (click)="toggleNodeAndLoad(node)" class="tree-toggle-btn">
                 <mat-icon class="toggle-icon">
                   {{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
                 </mat-icon>
               </button>
-              <span (click)="toggleNode(node)" class="node-label">
+              <span (click)="toggleNodeAndLoad(node)" class="node-label">
                 <mat-icon class="node-icon">{{ getIcon(node.type, node.extension) }}</mat-icon>
                 <span class="node-name" [title]="node.name">{{ node.name }}</span>
               </span>
             </div>
             <div [class.tree-invisible]="!treeControl.isExpanded(node)" class="tree-children">
+              @if (loadingNodes.has(node.id)) {
+                <div class="loading-node">
+                  <mat-spinner diameter="20"></mat-spinner>
+                  <span>Loading...</span>
+                </div>
+              }
               <ng-container matTreeNodeOutlet></ng-container>
             </div>
           </mat-nested-tree-node>
@@ -100,6 +106,15 @@ import { CourseItem } from '../../models/course.model';
     
     .loading mat-spinner {
       margin: 0 auto 16px;
+    }
+    
+    .loading-node {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      font-size: 12px;
+      color: #666;
     }
     
     .error-message {
@@ -224,6 +239,8 @@ export class SidebarComponent implements OnInit {
   loading = false;
   error = '';
   selectedItemId: number | null = null;
+  loadingNodes = new Set<number>();
+  loadedNodes = new Set<number>();
 
   constructor(
     private courseService: CourseService,
@@ -237,7 +254,7 @@ export class SidebarComponent implements OnInit {
   loadCourses() {
     this.loading = true;
     this.error = '';
-    this.cdr.detectChanges(); // Force UI update
+    this.cdr.detectChanges();
     
     this.courseService.getCourses().subscribe({
       next: (courses) => {
@@ -269,7 +286,7 @@ export class SidebarComponent implements OnInit {
               if (completed === courses.length) {
                 this.dataSource.data = items;
                 this.loading = false;
-                this.cdr.detectChanges(); // Force UI update when done
+                this.cdr.detectChanges();
               }
             },
             error: (err) => {
@@ -288,11 +305,44 @@ export class SidebarComponent implements OnInit {
     });
   }
 
-  hasChild = (_: number, node: CourseItem) => !!node.children && node.children.length > 0;
-  
-  toggleNode(node: CourseItem) { 
-    this.treeControl.toggle(node); 
+  toggleNodeAndLoad(node: CourseItem) {
+    // If expanding and folder type, load children
+    if (!this.treeControl.isExpanded(node) && node.type === 'folder' && !this.loadedNodes.has(node.id)) {
+      this.loadFolderContents(node);
+    }
+    this.treeControl.toggle(node);
   }
+
+  loadFolderContents(node: CourseItem) {
+    if (this.loadedNodes.has(node.id)) {
+      return; // Already loaded
+    }
+
+    this.loadingNodes.add(node.id);
+    this.cdr.detectChanges();
+
+    this.courseService.getFolderContents(node.id).subscribe({
+      next: (children) => {
+        node.children = children;
+        this.loadedNodes.add(node.id);
+        this.loadingNodes.delete(node.id);
+        
+        // Update the data source to trigger change detection
+        this.dataSource.data = [...this.dataSource.data];
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load folder contents:', err);
+        this.loadingNodes.delete(node.id);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  hasChild = (_: number, node: CourseItem) => {
+    // A node has children if it's a folder or course
+    return node.type === 'folder' || node.type === 'course';
+  };
   
   selectItem(node: CourseItem) {
     if (node.type !== 'folder' && node.type !== 'course') {
@@ -307,70 +357,46 @@ export class SidebarComponent implements OnInit {
   }
   
   getIcon(type: string, extension: string): string {
-    // For files, determine icon by extension
     if (type !== 'course' && type !== 'folder') {
       const ext = extension.toLowerCase();
       
-      // Video files
       if (['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm', '.flv', '.m4v'].includes(ext)) {
         return 'play_circle_outline';
       }
-      
-      // Audio files
       if (['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac'].includes(ext)) {
         return 'audiotrack';
       }
-      
-      // PDF
       if (ext === '.pdf') {
         return 'picture_as_pdf';
       }
-      
-      // Word documents
       if (['.doc', '.docx'].includes(ext)) {
         return 'description';
       }
-      
-      // Excel
       if (['.xls', '.xlsx'].includes(ext)) {
         return 'table_chart';
       }
-      
-      // PowerPoint
       if (['.ppt', '.pptx'].includes(ext)) {
         return 'slideshow';
       }
-      
-      // Text files
       if (['.txt', '.md', '.log'].includes(ext)) {
         return 'article';
       }
-      
-      // Code files
       if (['.js', '.ts', '.html', '.css', '.json', '.xml', '.py', '.java', '.cs', '.cpp'].includes(ext)) {
         return 'code';
       }
-      
-      // Images
       if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp'].includes(ext)) {
         return 'image';
       }
-      
-      // Archive files
       if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)) {
         return 'folder_zip';
       }
-      
-      // eBooks
       if (['.epub', '.mobi', '.azw', '.azw3'].includes(ext)) {
         return 'menu_book';
       }
       
-      // Default file icon
       return 'insert_drive_file';
     }
     
-    // Folder and course icons
     if (type === 'folder') {
       return 'folder';
     }
@@ -385,33 +411,31 @@ export class SidebarComponent implements OnInit {
   getIconColor(extension: string): string {
     const ext = extension.toLowerCase();
     
-    // Color coding for different file types
     if (['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm'].includes(ext)) {
-      return '#e53935'; // Red for video
+      return '#e53935';
     }
     if (['.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) {
-      return '#5e35b1'; // Purple for audio
+      return '#5e35b1';
     }
     if (ext === '.pdf') {
-      return '#d32f2f'; // Dark red for PDF
+      return '#d32f2f';
     }
     if (['.doc', '.docx'].includes(ext)) {
-      return '#1976d2'; // Blue for Word
+      return '#1976d2';
     }
     if (['.xls', '.xlsx'].includes(ext)) {
-      return '#388e3c'; // Green for Excel
+      return '#388e3c';
     }
     if (['.ppt', '.pptx'].includes(ext)) {
-      return '#f57c00'; // Orange for PowerPoint
+      return '#f57c00';
     }
     if (['.epub', '.mobi', '.azw', '.azw3'].includes(ext)) {
-      return '#6d4c41'; // Brown for eBooks
+      return '#6d4c41';
     }
     if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg'].includes(ext)) {
-      return '#00acc1'; // Cyan for images
+      return '#00acc1';
     }
     
-    return '#757575'; // Gray for others
+    return '#757575';
   }
 }
-
