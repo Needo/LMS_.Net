@@ -21,6 +21,7 @@ builder.Services.AddDbContext<LMSDbContext>(options =>
 
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 
 builder.Services.AddCors(options =>
 {
@@ -46,4 +47,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-

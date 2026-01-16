@@ -17,6 +17,36 @@ namespace LMS.API.Controllers
             _logger = logger;
         }
 
+        [HttpGet("categories")]
+        public async Task<ActionResult<List<Category>>> GetAllCategories()
+        {
+            try
+            {
+                var categories = await _courseService.GetAllCategoriesAsync();
+                return Ok(categories);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting categories");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpGet("categories/{categoryId}/courses")]
+        public async Task<ActionResult<List<Course>>> GetCoursesByCategory(int categoryId)
+        {
+            try
+            {
+                var courses = await _courseService.GetCoursesByCategoryAsync(categoryId);
+                return Ok(courses);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting courses for category");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<List<Course>>> GetAll()
         {
@@ -59,6 +89,21 @@ namespace LMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting course items");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpGet("folders/{folderId}/contents")]
+        public async Task<ActionResult<List<CourseItem>>> GetFolderContents(int folderId)
+        {
+            try
+            {
+                var items = await _courseService.GetFolderContentsAsync(folderId);
+                return Ok(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting folder contents");
                 return StatusCode(500, ex.Message);
             }
         }

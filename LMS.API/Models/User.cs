@@ -26,12 +26,18 @@ namespace LMS.API.Models
         [Required]
         [MaxLength(10)]
         public string Sex { get; set; } = "Male";
+
+        [Required]
+        [MaxLength(20)]
+        public string Role { get; set; } = "Student"; // Admin or Student
         
         public bool IsActive { get; set; } = true;
         
         public DateTime CreatedDate { get; set; } = DateTime.Now;
         
         public DateTime? LastLoginDate { get; set; }
+
+        public List<UserCourseSubscription> Subscriptions { get; set; } = new();
     }
     
     public class LoginRequest
@@ -50,6 +56,7 @@ namespace LMS.API.Models
         public string Email { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty;
     }
     
@@ -71,6 +78,9 @@ namespace LMS.API.Models
         
         [Required]
         public string Sex { get; set; } = "Male";
+
+        [Required]
+        public string Role { get; set; } = "Student";
     }
     
     public class UpdateUserRequest
@@ -83,6 +93,9 @@ namespace LMS.API.Models
         
         [Required]
         public string Sex { get; set; } = "Male";
+
+        [Required]
+        public string Role { get; set; } = "Student";
         
         public string? NewPassword { get; set; }
     }

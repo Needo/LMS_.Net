@@ -6,6 +6,7 @@ namespace LMS.API.Services
 {
     public class ScanResult
     {
+        public int CategoriesAdded { get; set; }
         public int CoursesAdded { get; set; }
         public int FoldersAdded { get; set; }
         public int FilesAdded { get; set; }
@@ -14,9 +15,12 @@ namespace LMS.API.Services
 
     public interface ICourseService
     {
+        Task<List<Category>> GetAllCategoriesAsync();
         Task<List<Course>> GetAllCoursesAsync();
+        Task<List<Course>> GetCoursesByCategoryAsync(int categoryId);
         Task<Course?> GetCourseByIdAsync(int id);
         Task<List<CourseItem>> GetCourseItemsAsync(int courseId);
+        Task<List<CourseItem>> GetFolderContentsAsync(int folderId);
         Task<ScanResult> ScanCoursesAsync(string rootPath);
     }
 
@@ -24,6 +28,7 @@ namespace LMS.API.Services
     {
         private readonly LMSDbContext _context;
         private readonly ILogger<CourseService> _logger;
+        private int _categoriesCount = 0;
         private int _foldersCount = 0;
         private int _filesCount = 0;
 
@@ -33,74 +38,59 @@ namespace LMS.API.Services
             _logger = logger;
         }
 
+        public async Task<List<Category>> GetAllCategoriesAsync()
+        {
+            return await _context.Categories
+                .Include(c => c.Courses)
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+        }
+
         public async Task<List<Course>> GetAllCoursesAsync()
         {
             return await _context.Courses
-                .Select(c => new Course
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Path = c.Path,
-                    CreatedDate = c.CreatedDate
-                })
+                .Include(c => c.Category)
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+        }
+
+        public async Task<List<Course>> GetCoursesByCategoryAsync(int categoryId)
+        {
+            return await _context.Courses
+                .Where(c => c.CategoryId == categoryId)
+                .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
         public async Task<Course?> GetCourseByIdAsync(int id)
         {
             return await _context.Courses
-                .Where(c => c.Id == id)
-                .Select(c => new Course
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Path = c.Path,
-                    CreatedDate = c.CreatedDate
-                })
-                .FirstOrDefaultAsync();
+                .Include(c => c.Category)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<List<CourseItem>> GetCourseItemsAsync(int courseId)
         {
+            // Get only top-level items (no parent) for the course
             var items = await _context.CourseItems
                 .Where(i => i.CourseId == courseId && i.ParentId == null)
+                .OrderBy(i => i.Type == "folder" ? 0 : 1)
+                .ThenBy(i => i.Name)
                 .ToListAsync();
 
-            return await LoadChildrenRecursive(items);
+            return items;
         }
 
-        private async Task<List<CourseItem>> LoadChildrenRecursive(List<CourseItem> items)
+        public async Task<List<CourseItem>> GetFolderContentsAsync(int folderId)
         {
-            var result = new List<CourseItem>();
+            // Get direct children of a folder
+            var items = await _context.CourseItems
+                .Where(i => i.ParentId == folderId)
+                .OrderBy(i => i.Type == "folder" ? 0 : 1)
+                .ThenBy(i => i.Name)
+                .ToListAsync();
 
-            foreach (var item in items)
-            {
-                var newItem = new CourseItem
-                {
-                    Id = item.Id,
-                    CourseId = item.CourseId,
-                    ParentId = item.ParentId,
-                    Name = item.Name,
-                    Path = item.Path,
-                    Type = item.Type,
-                    Extension = item.Extension,
-                    Size = item.Size,
-                    Children = new List<CourseItem>()
-                };
-
-                var children = await _context.CourseItems
-                    .Where(i => i.ParentId == item.Id)
-                    .ToListAsync();
-
-                if (children.Any())
-                {
-                    newItem.Children = await LoadChildrenRecursive(children);
-                }
-
-                result.Add(newItem);
-            }
-
-            return result;
+            return items;
         }
 
         public async Task<ScanResult> ScanCoursesAsync(string rootPath)
@@ -110,45 +100,75 @@ namespace LMS.API.Services
                 throw new DirectoryNotFoundException($"Path not found: {rootPath}");
             }
 
-            _logger.LogInformation("Starting optimized scan of: {RootPath}", rootPath);
+            _logger.LogInformation("Starting category-based scan of: {RootPath}", rootPath);
 
+            _categoriesCount = 0;
             _foldersCount = 0;
             _filesCount = 0;
 
             // Clear existing data
             _context.CourseItems.RemoveRange(_context.CourseItems);
             _context.Courses.RemoveRange(_context.Courses);
+            _context.Categories.RemoveRange(_context.Categories);
             await _context.SaveChangesAsync();
 
-            var directories = Directory.GetDirectories(rootPath);
+            // Root folders become Categories (e.g., Books, Courses, Documents)
+            var categoryDirectories = Directory.GetDirectories(rootPath);
             int coursesAdded = 0;
 
-            foreach (var dir in directories)
+            foreach (var categoryDir in categoryDirectories)
             {
-                var dirInfo = new DirectoryInfo(dir);
-                var course = new Course
+                var categoryInfo = new DirectoryInfo(categoryDir);
+                
+                // Create Category
+                var category = new Category
                 {
-                    Name = dirInfo.Name,
-                    Path = dirInfo.FullName,
+                    Name = categoryInfo.Name,
+                    Path = categoryInfo.FullName,
                     CreatedDate = DateTime.Now
                 };
 
-                _context.Courses.Add(course);
-                await _context.SaveChangesAsync(); // Save to get course ID
+                _context.Categories.Add(category);
+                await _context.SaveChangesAsync(); // Save to get category ID
+                _categoriesCount++;
 
-                _logger.LogInformation("Scanning course: {CourseName}", course.Name);
-                coursesAdded++;
+                _logger.LogInformation("Created category: {CategoryName}", category.Name);
 
-                // Scan directory with proper hierarchy
-                await ScanDirectoryAsync(dirInfo, course.Id, null);
+                // First-level subfolders become Courses
+                var courseDirectories = Directory.GetDirectories(categoryDir);
+
+                foreach (var courseDir in courseDirectories)
+                {
+                    var courseInfo = new DirectoryInfo(courseDir);
+
+                    // Create Course
+                    var course = new Course
+                    {
+                        CategoryId = category.Id,
+                        Name = courseInfo.Name,
+                        Path = courseInfo.FullName,
+                        CreatedDate = DateTime.Now
+                    };
+
+                    _context.Courses.Add(course);
+                    await _context.SaveChangesAsync(); // Save to get course ID
+                    coursesAdded++;
+
+                    _logger.LogInformation("Created course: {CourseName} in category: {CategoryName}", 
+                        course.Name, category.Name);
+
+                    // Scan course contents (subfolders and files)
+                    await ScanDirectoryAsync(courseInfo, course.Id, null);
+                }
             }
 
             var result = new ScanResult
             {
+                CategoriesAdded = _categoriesCount,
                 CoursesAdded = coursesAdded,
                 FoldersAdded = _foldersCount,
                 FilesAdded = _filesCount,
-                Message = $"Scan completed! Added {coursesAdded} course(s), {_foldersCount} folder(s), and {_filesCount} file(s)."
+                Message = $"Scan completed! Added {_categoriesCount} categor(ies), {coursesAdded} course(s), {_foldersCount} folder(s), and {_filesCount} file(s)."
             };
 
             _logger.LogInformation("Scan completed: {Result}", result.Message);
@@ -210,7 +230,7 @@ namespace LMS.API.Services
             }
         }
 
-                private string GetFileType(string extension)
+        private string GetFileType(string extension)
         {
             var ext = extension.ToLower();
             
@@ -226,9 +246,13 @@ namespace LMS.API.Services
             if (new[] { ".pdf", ".doc", ".docx", ".txt", ".ppt", ".pptx", ".xls", ".xlsx" }.Contains(ext))
                 return "document";
             
-            // eBook files
+            // eBook files (EPUB support added)
             if (new[] { ".epub", ".mobi", ".azw", ".azw3" }.Contains(ext))
                 return "ebook";
+            
+            // HTML files
+            if (ext == ".html" || ext == ".htm")
+                return "html";
             
             // Image files
             if (new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp" }.Contains(ext))
