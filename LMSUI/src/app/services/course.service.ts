@@ -1,15 +1,23 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Course, CourseItem } from '../models/course.model';
+import { Course, CourseItem, Category } from '../models/course.model';
 
 @Injectable({ providedIn: 'root' })
 export class CourseService {
   private apiUrl = 'http://localhost:5000/api';
   constructor(private http: HttpClient) {}
   
+  getCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>(`${this.apiUrl}/courses/categories`);
+  }
+  
   getCourses(): Observable<Course[]> {
     return this.http.get<Course[]>(`${this.apiUrl}/courses`);
+  }
+  
+  getCoursesByCategory(categoryId: number): Observable<Course[]> {
+    return this.http.get<Course[]>(`${this.apiUrl}/courses/categories/${categoryId}/courses`);
   }
   
   getCourseItems(courseId: number): Observable<CourseItem[]> {

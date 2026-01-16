@@ -1,8 +1,18 @@
-export interface Course {
+export interface Category {
   id: number;
   name: string;
   path: string;
   createdDate: Date;
+  courses?: Course[];
+}
+
+export interface Course {
+  id: number;
+  categoryId: number;
+  name: string;
+  path: string;
+  createdDate: Date;
+  category?: Category;
   items?: CourseItem[];
 }
 

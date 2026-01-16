@@ -4,9 +4,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CourseService } from '../../services/course.service';
-import { CourseItem } from '../../models/course.model';
+import { CourseItem, Category, Course } from '../../models/course.model';
 
-interface TreeNode extends CourseItem {
+interface TreeNode {
+  id: number;
+  courseId?: number;
+  name: string;
+  path: string;
+  type: 'category' | 'course' | 'folder' | string;
+  extension: string;
+  size: number;
+  children?: TreeNode[];
   expanded?: boolean;
   level?: number;
   loading?: boolean;
@@ -20,8 +28,8 @@ interface TreeNode extends CourseItem {
     <div class="tree-node">
       <!-- Node Row -->
       <div class="node-row" [style.padding-left.px]="node.level! * 24">
-        <!-- Toggle button for folders -->
-        @if (isFolder) {
+        <!-- Toggle button for folders/categories/courses -->
+        @if (hasChildren) {
           <button mat-icon-button class="toggle-btn" (click)="onToggle()">
             <mat-icon>{{ node.expanded ? 'expand_more' : 'chevron_right' }}</mat-icon>
           </button>
@@ -134,8 +142,8 @@ export class TreeNodeComponent {
   @Output() nodeToggle = new EventEmitter<TreeNode>();
   @Output() nodeSelect = new EventEmitter<TreeNode>();
 
-  get isFolder(): boolean {
-    return this.node.type === 'folder';
+  get hasChildren(): boolean {
+    return this.node.type === 'category' || this.node.type === 'course' || this.node.type === 'folder';
   }
 
   get isSelected(): boolean {
@@ -146,6 +154,7 @@ export class TreeNodeComponent {
     const type = this.node.type;
     const ext = this.node.extension.toLowerCase();
     
+    if (type === 'category') return 'category';
     if (type === 'course') return 'school';
     if (type === 'folder') return 'folder';
     
@@ -160,7 +169,12 @@ export class TreeNodeComponent {
   }
 
   get iconColor(): string {
+    const type = this.node.type;
     const ext = this.node.extension.toLowerCase();
+    
+    if (type === 'category') return '#ff6f00';
+    if (type === 'course') return '#1976d2';
+    if (type === 'folder') return '#ffa726';
     
     if (['.mp4', '.avi', '.mkv'].includes(ext)) return '#e53935';
     if (['.mp3', '.wav'].includes(ext)) return '#5e35b1';
@@ -176,7 +190,7 @@ export class TreeNodeComponent {
   }
 
   onClick() {
-    if (this.isFolder || this.node.type === 'course') {
+    if (this.hasChildren) {
       this.onToggle();
     } else {
       this.nodeSelect.emit(this.node);
@@ -198,12 +212,12 @@ export class TreeNodeComponent {
   imports: [CommonModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule, TreeNodeComponent],
   template: `
     <div class="sidebar">
-      <h3>Courses</h3>
+      <h3>Categories</h3>
       
       @if (loading) {
         <div class="loading">
           <mat-spinner diameter="40"></mat-spinner>
-          <p>Loading courses...</p>
+          <p>Loading categories...</p>
         </div>
       }
       
@@ -211,23 +225,23 @@ export class TreeNodeComponent {
         <div class="error-message">
           <mat-icon>error</mat-icon>
           <p>{{ error }}</p>
-          <button mat-raised-button color="primary" (click)="loadCourses()">Retry</button>
+          <button mat-raised-button color="primary" (click)="loadCategories()">Retry</button>
         </div>
       }
       
-      @if (!loading && !error && courses.length === 0) {
+      @if (!loading && !error && categories.length === 0) {
         <div class="empty-state">
-          <mat-icon>school</mat-icon>
-          <p>No courses found</p>
+          <mat-icon>category</mat-icon>
+          <p>No categories found</p>
           <p class="hint">Use Admin panel to scan courses</p>
         </div>
       }
       
-      @if (!loading && !error && courses.length > 0) {
+      @if (!loading && !error && categories.length > 0) {
         <div class="tree-container">
-          @for (course of courses; track course.id) {
+          @for (category of categories; track category.id) {
             <app-tree-node 
-              [node]="course" 
+              [node]="category" 
               [selectedId]="selectedItemId"
               (nodeToggle)="toggleNode($event)"
               (nodeSelect)="selectFile($event)">
@@ -303,11 +317,11 @@ export class TreeNodeComponent {
 export class SidebarComponent implements OnInit {
   @Output() fileSelected = new EventEmitter<CourseItem>();
   
-  courses: TreeNode[] = [];
+  categories: TreeNode[] = [];
   loading = false;
   error = '';
   selectedItemId: number | null = null;
-  loadedNodes = new Set<number>();
+  loadedNodes = new Set<string>();
 
   constructor(
     private courseService: CourseService,
@@ -315,54 +329,28 @@ export class SidebarComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.loadCourses();
+    this.loadCategories();
   }
 
-  loadCourses() {
+  loadCategories() {
     this.loading = true;
     this.error = '';
     
-    this.courseService.getCourses().subscribe({
-      next: (courses) => {
-        if (courses.length === 0) {
-          this.loading = false;
-          this.courses = [];
-          return;
-        }
-        
-        let completed = 0;
-        const treeNodes: TreeNode[] = [];
-        
-        courses.forEach(course => {
-          this.courseService.getCourseItems(course.id).subscribe({
-            next: (items) => {
-              treeNodes.push({
-                id: course.id,
-                courseId: course.id,
-                name: course.name,
-                path: course.path,
-                type: 'course',
-                extension: '',
-                size: 0,
-                children: items.map(item => ({ ...item, level: 1 })),
-                expanded: false,
-                level: 0
-              });
-              completed++;
-              
-              if (completed === courses.length) {
-                this.courses = treeNodes;
-                this.loading = false;
-                this.cdr.detectChanges();
-              }
-            },
-            error: (err) => {
-              this.loading = false;
-              this.error = 'Failed to load course items: ' + err.message;
-              this.cdr.detectChanges();
-            }
-          });
-        });
+    this.courseService.getCategories().subscribe({
+      next: (categories) => {
+        this.categories = categories.map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          path: cat.path,
+          type: 'category',
+          extension: '',
+          size: 0,
+          children: [],
+          expanded: false,
+          level: 0
+        }));
+        this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.loading = false;
@@ -375,45 +363,125 @@ export class SidebarComponent implements OnInit {
   toggleNode(node: TreeNode) {
     node.expanded = !node.expanded;
     
-    // Load folder contents if expanding a folder for the first time
-    if (node.expanded && node.type === 'folder' && !this.loadedNodes.has(node.id)) {
-      this.loadFolderContents(node);
+    const nodeKey = `${node.type}-${node.id}`;
+    
+    // Load contents based on node type
+    if (node.expanded && !this.loadedNodes.has(nodeKey)) {
+      if (node.type === 'category') {
+        this.loadCourses(node);
+      } else if (node.type === 'course') {
+        this.loadCourseItems(node);
+      } else if (node.type === 'folder') {
+        this.loadFolderContents(node);
+      }
     }
     
     this.cdr.detectChanges();
   }
 
-  loadFolderContents(node: TreeNode) {
-    if (this.loadedNodes.has(node.id)) {
-      return;
-    }
+  loadCourses(categoryNode: TreeNode) {
+    const nodeKey = `category-${categoryNode.id}`;
+    if (this.loadedNodes.has(nodeKey)) return;
 
-    node.loading = true;
+    categoryNode.loading = true;
     this.cdr.detectChanges();
 
-    this.courseService.getFolderContents(node.id).subscribe({
-      next: (children) => {
-        node.children = children.map(child => ({
-          ...child,
+    this.courseService.getCoursesByCategory(categoryNode.id).subscribe({
+      next: (courses) => {
+        categoryNode.children = courses.map(course => ({
+          id: course.id,
+          courseId: course.id,
+          name: course.name,
+          path: course.path,
+          type: 'course',
+          extension: '',
+          size: 0,
+          children: [],
           expanded: false,
-          level: (node.level || 0) + 1
+          level: (categoryNode.level || 0) + 1
         }));
-        node.loading = false;
-        this.loadedNodes.add(node.id);
+        categoryNode.loading = false;
+        this.loadedNodes.add(nodeKey);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load courses:', err);
+        categoryNode.loading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  loadCourseItems(courseNode: TreeNode) {
+    const nodeKey = `course-${courseNode.id}`;
+    if (this.loadedNodes.has(nodeKey) || !courseNode.courseId) return;
+
+    courseNode.loading = true;
+    this.cdr.detectChanges();
+
+    this.courseService.getCourseItems(courseNode.courseId).subscribe({
+      next: (items) => {
+        courseNode.children = items.map(item => ({
+          id: item.id,
+          courseId: item.courseId,
+          name: item.name,
+          path: item.path,
+          type: item.type,
+          extension: item.extension,
+          size: item.size,
+          children: [],
+          expanded: false,
+          level: (courseNode.level || 0) + 1
+        }));
+        courseNode.loading = false;
+        this.loadedNodes.add(nodeKey);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load course items:', err);
+        courseNode.loading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  loadFolderContents(folderNode: TreeNode) {
+    const nodeKey = `folder-${folderNode.id}`;
+    if (this.loadedNodes.has(nodeKey)) return;
+
+    folderNode.loading = true;
+    this.cdr.detectChanges();
+
+    this.courseService.getFolderContents(folderNode.id).subscribe({
+      next: (children) => {
+        folderNode.children = children.map(child => ({
+          id: child.id,
+          courseId: child.courseId,
+          name: child.name,
+          path: child.path,
+          type: child.type,
+          extension: child.extension,
+          size: child.size,
+          children: [],
+          expanded: false,
+          level: (folderNode.level || 0) + 1
+        }));
+        folderNode.loading = false;
+        this.loadedNodes.add(nodeKey);
         this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load folder contents:', err);
-        node.loading = false;
+        folderNode.loading = false;
         this.cdr.detectChanges();
       }
     });
   }
 
   selectFile(node: TreeNode) {
-    if (node.type !== 'folder' && node.type !== 'course') {
+    if (node.type !== 'folder' && node.type !== 'course' && node.type !== 'category') {
       this.selectedItemId = node.id;
-      this.fileSelected.emit(node);
+      this.fileSelected.emit(node as CourseItem);
       this.cdr.detectChanges();
     }
   }
