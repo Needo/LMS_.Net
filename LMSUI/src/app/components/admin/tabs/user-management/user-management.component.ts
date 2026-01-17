@@ -11,7 +11,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { UserService, User, CreateUserRequest, UpdateUserRequest, UserCourse } from '../../../../services/user.service';
+import { MatListModule } from '@angular/material/list';
+import { UserService, User, CreateUserRequest, UpdateUserRequest } from '../../../../services/user.service';
 import { CourseService } from '../../../../services/course.service';
 import { Course } from '../../../../models/course.model';
 
@@ -186,7 +187,6 @@ export class UserManagementComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Delay to avoid ExpressionChangedAfterItHasBeenChecked error
     setTimeout(() => {
       this.loadUsers();
     });
@@ -238,8 +238,9 @@ export class UserManagementComponent implements OnInit {
   }
 
   openSubscriptionsDialog(user: User) {
-    const dialogRef = this.dialog.open(SubscriptionsDialog, {
+    this.dialog.open(SubscriptionsDialog, {
       width: '600px',
+      maxHeight: '80vh',
       data: { user }
     });
   }
@@ -426,10 +427,17 @@ export class AddEditUserDialog {
     MatCheckboxModule,
     MatButtonModule,
     MatProgressSpinnerModule,
+    MatListModule,
+    MatIconModule,
     FormsModule
   ],
   template: `
-    <h2 mat-dialog-title>Manage Subscriptions - {{ data.user.firstName }} {{ data.user.lastName }}</h2>
+    <h2 mat-dialog-title>Manage Course Subscriptions</h2>
+    <div class="user-info">
+      <mat-icon>person</mat-icon>
+      {{ data.user.firstName }} {{ data.user.lastName }} ({{ data.user.email }})
+    </div>
+    
     <mat-dialog-content>
       @if (loading) {
         <div class="loading">
@@ -438,126 +446,178 @@ export class AddEditUserDialog {
         </div>
       }
 
-      @if (!loading) {
+      @if (!loading && allCourses.length === 0) {
+        <div class="empty-state">
+          <mat-icon>school</mat-icon>
+          <p>No courses available</p>
+        </div>
+      }
+
+      @if (!loading && allCourses.length > 0) {
         <div class="courses-list">
           @for (course of allCourses; track course.id) {
             <div class="course-item">
               <mat-checkbox 
-                [(ngModel)]="subscribedCourseIds[course.id]"
+                [checked]="isSubscribed(course.id)"
                 (change)="toggleSubscription(course.id, $event.checked)">
-                <div class="course-info">
-                  <strong>{{ course.name }}</strong>
-                  <span class="category">{{ course.category?.name || 'No Category' }}</span>
-                </div>
+                {{ course.name }}
               </mat-checkbox>
             </div>
           }
         </div>
       }
     </mat-dialog-content>
+    
     <mat-dialog-actions align="end">
-      <button mat-button (click)="close()">Close</button>
+      <button mat-raised-button color="primary" (click)="close()">Close</button>
     </mat-dialog-actions>
   `,
   styles: [`
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .user-info mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
     .loading {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 24px;
+      padding: 48px;
       gap: 16px;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px;
+      color: #999;
+    }
+
+    .empty-state mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
     }
 
     .courses-list {
       max-height: 400px;
       overflow-y: auto;
+      padding: 8px 0;
     }
 
     .course-item {
-      padding: 8px 0;
+      padding: 12px 16px;
       border-bottom: 1px solid #f0f0f0;
     }
 
-    .course-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    .course-item:hover {
+      background: #fafafa;
     }
 
-    .category {
-      font-size: 12px;
-      color: #666;
+    .course-item:last-child {
+      border-bottom: none;
     }
   `]
 })
 export class SubscriptionsDialog implements OnInit {
-  loading = true;
+  loading = false; // Start with false to avoid change detection error
   allCourses: Course[] = [];
-  subscribedCourseIds: { [key: number]: boolean } = {};
+  subscribedCourseIds: number[] = [];
 
   constructor(
     private userService: UserService,
     private courseService: CourseService,
     private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef,
     public dialogRef: MatDialogRef<SubscriptionsDialog>,
     @Inject(MAT_DIALOG_DATA) public data: { user: User }
   ) {}
 
   ngOnInit() {
-    this.loadData();
+    // Delay to avoid ExpressionChangedAfterItHasBeenChecked error
+    setTimeout(() => {
+      this.loadData();
+    });
   }
 
   loadData() {
     this.loading = true;
+    this.cdr.detectChanges();
+    console.log('=== Loading subscriptions for user:', this.data.user.id);
 
-    // Load all courses
-    this.courseService.getAllCourses().subscribe({
-      next: (courses) => {
-        this.allCourses = courses;
+    // Load subscribed course IDs first (faster query)
+    this.userService.getSubscribedCourseIds(this.data.user.id).subscribe({
+      next: (courseIds) => {
+        this.subscribedCourseIds = courseIds;
+        console.log('✓ Subscribed IDs:', courseIds);
 
-        // Load user's subscribed course IDs
-        this.userService.getSubscribedCourseIds(this.data.user.id).subscribe({
-          next: (courseIds) => {
-            courseIds.forEach(id => {
-              this.subscribedCourseIds[id] = true;
-            });
+        // Then load all courses
+        this.courseService.getCourses().subscribe({
+          next: (courses) => {
+            this.allCourses = courses;
             this.loading = false;
+            this.cdr.detectChanges();
+            console.log('✓ Loaded courses:', courses.length);
           },
           error: (error) => {
-            console.error('Error loading subscriptions:', error);
+            console.error('✗ Error loading courses:', error);
+            this.snackBar.open('Error loading courses', 'Close', { duration: 3000 });
             this.loading = false;
+            this.cdr.detectChanges();
           }
         });
       },
       error: (error) => {
-        console.error('Error loading courses:', error);
-        this.snackBar.open('Error loading courses', 'Close', { duration: 3000 });
+        console.error('✗ Error loading subscriptions:', error);
+        this.snackBar.open('Error loading subscriptions', 'Close', { duration: 3000 });
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
 
+  isSubscribed(courseId: number): boolean {
+    return this.subscribedCourseIds.includes(courseId);
+  }
+
   toggleSubscription(courseId: number, isChecked: boolean) {
+    console.log('Toggle subscription:', courseId, isChecked);
+    
     if (isChecked) {
       this.userService.subscribe(this.data.user.id, courseId).subscribe({
         next: () => {
-          this.snackBar.open('Subscribed successfully', 'Close', { duration: 2000 });
+          this.subscribedCourseIds.push(courseId);
+          this.snackBar.open('Subscribed', 'Close', { duration: 2000 });
         },
         error: (error) => {
           console.error('Error subscribing:', error);
           this.snackBar.open('Error subscribing', 'Close', { duration: 3000 });
-          this.subscribedCourseIds[courseId] = false;
         }
       });
     } else {
       this.userService.unsubscribe(this.data.user.id, courseId).subscribe({
         next: () => {
-          this.snackBar.open('Unsubscribed successfully', 'Close', { duration: 2000 });
+          this.subscribedCourseIds = this.subscribedCourseIds.filter(id => id !== courseId);
+          this.snackBar.open('Unsubscribed', 'Close', { duration: 2000 });
         },
         error: (error) => {
           console.error('Error unsubscribing:', error);
           this.snackBar.open('Error unsubscribing', 'Close', { duration: 3000 });
-          this.subscribedCourseIds[courseId] = true;
         }
       });
     }
