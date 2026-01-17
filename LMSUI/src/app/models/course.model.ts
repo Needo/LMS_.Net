@@ -9,6 +9,7 @@ export interface Category {
 export interface Course {
   id: number;
   categoryId: number;
+  categoryName?: string;
   name: string;
   path: string;
   createdDate: Date;

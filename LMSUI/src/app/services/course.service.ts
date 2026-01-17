@@ -15,6 +15,10 @@ export class CourseService {
   getCourses(): Observable<Course[]> {
     return this.http.get<Course[]>(`${this.apiUrl}/courses`);
   }
+
+  getAllCourses(): Observable<Course[]> {
+    return this.http.get<Course[]>(`${this.apiUrl}/courses`);
+  }
   
   getCoursesByCategory(categoryId: number): Observable<Course[]> {
     return this.http.get<Course[]>(`${this.apiUrl}/courses/categories/${categoryId}/courses`);
