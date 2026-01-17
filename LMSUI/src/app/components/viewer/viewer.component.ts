@@ -1,10 +1,11 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { CourseItem } from '../../models/course.model';
 import { CourseService } from '../../services/course.service';
+import ePub from 'epubjs';
 
 @Component({
   selector: 'app-viewer',
@@ -22,6 +23,18 @@ import { CourseService } from '../../services/course.service';
         <div class="content">
           <div class="file-header">
             <h2>{{ selectedItem.name }}</h2>
+            <!-- EPUB navigation controls -->
+            @if (selectedItem.type === 'ebook' && epubRendition) {
+              <div class="epub-controls">
+                <button mat-icon-button (click)="epubPrev()" [disabled]="!canGoPrev">
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+                <span class="page-info">{{ epubPageInfo }}</span>
+                <button mat-icon-button (click)="epubNext()" [disabled]="!canGoNext">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              </div>
+            }
           </div>
           
           @if (selectedItem.type === 'video') {
@@ -48,6 +61,13 @@ import { CourseService } from '../../services/course.service';
           
           @if (selectedItem.type === 'document' && selectedItem.extension === '.html') {
             <iframe [src]="sanitizeUrl(fileUrl)" class="document-viewer"></iframe>
+          }
+          
+          <!-- EPUB viewer -->
+          @if (selectedItem.type === 'ebook') {
+            <div class="epub-container">
+              <div #epubViewer class="epub-viewer"></div>
+            </div>
           }
           
           @if (
@@ -107,12 +127,28 @@ import { CourseService } from '../../services/course.service';
       padding: 16px 24px;
       border-bottom: 1px solid #e0e0e0;
       flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .file-header h2 {
       margin: 0;
       font-size: 18px;
       font-weight: 500;
+    }
+
+    .epub-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-info {
+      font-size: 14px;
+      color: #666;
+      min-width: 120px;
+      text-align: center;
     }
 
     .media-container {
@@ -174,6 +210,25 @@ import { CourseService } from '../../services/course.service';
       border: 1px solid #e0e0e0;
     }
 
+    .epub-container {
+      flex: 1;
+      overflow: hidden;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .epub-viewer {
+      width: 100%;
+      height: 100%;
+      max-width: 900px;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 4px;
+    }
+
     .file-info {
       flex: 1;
       display: flex;
@@ -193,11 +248,20 @@ import { CourseService } from '../../services/course.service';
     }
   `]
 })
-export class ViewerComponent implements OnChanges {
+export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() selectedItem: CourseItem | null = null;
+  @ViewChild('epubViewer') epubViewerRef?: ElementRef;
+  
   fileUrl: string = '';
   textContent: string = '';
   private previousItemId: number | null = null;
+
+  // EPUB properties
+  epubBook: any = null;
+  epubRendition: any = null;
+  epubPageInfo: string = '';
+  canGoPrev: boolean = false;
+  canGoNext: boolean = true;
 
   constructor(
     private courseService: CourseService,
@@ -205,29 +269,31 @@ export class ViewerComponent implements OnChanges {
     private cdr: ChangeDetectorRef
   ) {}
 
+  ngAfterViewInit() {
+    // Component ready
+  }
+
   ngOnChanges(changes: SimpleChanges) {
-  // Only react if selectedItem actually changed AND it's not a folder/course
-  if (changes['selectedItem']) {
-    const currentItem = changes['selectedItem'].currentValue;
-    const previousItem = changes['selectedItem'].previousValue;
-    
-    // Check if it's actually a different item
-    if (currentItem && currentItem.id !== this.previousItemId) {
-      // Only load if it's not a folder or course
-      if (currentItem.type !== 'folder' && currentItem.type !== 'course') {
-        this.previousItemId = currentItem.id;
-        this.textContent = '';
+    if (changes['selectedItem']) {
+      const currentItem = changes['selectedItem'].currentValue;
+      
+      if (currentItem && currentItem.id !== this.previousItemId) {
+        if (currentItem.type !== 'folder' && currentItem.type !== 'course') {
+          this.previousItemId = currentItem.id;
+          this.textContent = '';
+          this.fileUrl = '';
+          this.cleanupEpub();
+          this.cdr.detectChanges();
+          this.loadContent();
+        }
+      } else if (!currentItem) {
         this.fileUrl = '';
-        this.cdr.detectChanges();
-        this.loadContent();
+        this.textContent = '';
+        this.previousItemId = null;
+        this.cleanupEpub();
       }
-    } else if (!currentItem) {
-      this.fileUrl = '';
-      this.textContent = '';
-      this.previousItemId = null;
     }
   }
-}
 
   private loadContent() {
     if (!this.selectedItem) return;
@@ -246,7 +312,72 @@ export class ViewerComponent implements OnChanges {
           this.textContent = 'Error loading file';
           this.cdr.detectChanges();
         });
+    } else if (this.selectedItem.type === 'ebook') {
+      setTimeout(() => this.loadEpubBook(), 200);
     }
+  }
+
+  private loadEpubBook() {
+    if (!this.epubViewerRef?.nativeElement) {
+      console.error('EPUB viewer element not ready');
+      return;
+    }
+
+    try {
+      console.log('Loading EPUB from:', this.fileUrl);
+      
+      this.epubBook = ePub(this.fileUrl);
+      
+      this.epubRendition = this.epubBook.renderTo(this.epubViewerRef.nativeElement, {
+        width: '100%',
+        height: '100%',
+        flow: 'paginated',
+        spread: 'none'
+      });
+
+      this.epubRendition.display().then(() => {
+        console.log('EPUB displayed successfully');
+        this.cdr.detectChanges();
+      });
+
+      this.epubRendition.on('relocated', (location: any) => {
+        if (location?.start?.displayed) {
+          const current = location.start.displayed.page;
+          const total = location.start.displayed.total;
+          this.epubPageInfo = `Page ${current} of ${total}`;
+          this.canGoPrev = !location.atStart;
+          this.canGoNext = !location.atEnd;
+          this.cdr.detectChanges();
+        }
+      });
+
+    } catch (error) {
+      console.error('Error loading EPUB:', error);
+    }
+  }
+
+  epubPrev() {
+    if (this.epubRendition) {
+      this.epubRendition.prev();
+    }
+  }
+
+  epubNext() {
+    if (this.epubRendition) {
+      this.epubRendition.next();
+    }
+  }
+
+  private cleanupEpub() {
+    if (this.epubRendition) {
+      this.epubRendition.destroy();
+      this.epubRendition = null;
+    }
+    if (this.epubBook) {
+      this.epubBook.destroy();
+      this.epubBook = null;
+    }
+    this.epubPageInfo = '';
   }
 
   sanitizeUrl(url: string): SafeResourceUrl {
@@ -258,5 +389,9 @@ export class ViewerComponent implements OnChanges {
     if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
     if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB';
     return (bytes / 1073741824).toFixed(2) + ' GB';
+  }
+
+  ngOnDestroy() {
+    this.cleanupEpub();
   }
 }
