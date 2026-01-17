@@ -71,7 +71,7 @@ interface TreeNode {
     .node-row {
       display: flex;
       align-items: center;
-      min-height: 40px;
+      min-height: 36px;
       transition: background 0.2s;
     }
     
@@ -80,14 +80,19 @@ interface TreeNode {
     }
     
     .toggle-btn {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
       flex-shrink: 0;
-      margin-right: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
     }
     
     .spacer {
       width: 36px;
+      height: 36px;
       flex-shrink: 0;
     }
     
@@ -95,6 +100,7 @@ interface TreeNode {
       font-size: 20px;
       width: 20px;
       height: 20px;
+      line-height: 20px;
     }
     
     .node-content {
@@ -102,9 +108,10 @@ interface TreeNode {
       align-items: center;
       gap: 8px;
       flex: 1;
-      padding: 8px;
+      padding: 6px 8px;
       border-radius: 4px;
       cursor: pointer;
+      min-height: 36px;
     }
     
     .node-content.selected {
@@ -116,11 +123,16 @@ interface TreeNode {
       font-size: 20px;
       width: 20px;
       height: 20px;
+      line-height: 20px;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .node-name {
       font-size: 14px;
+      line-height: 20px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;

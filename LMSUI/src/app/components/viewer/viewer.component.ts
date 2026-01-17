@@ -277,8 +277,17 @@ export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
     if (changes['selectedItem']) {
       const currentItem = changes['selectedItem'].currentValue;
       
-      if (currentItem && currentItem.id !== this.previousItemId) {
-        if (currentItem.type !== 'folder' && currentItem.type !== 'course') {
+      // Only process if it's actually a new file (not folder/course/category)
+      if (currentItem) {
+        // Ignore folders, courses, and categories - don't reload viewer
+        if (currentItem.type === 'folder' || 
+            currentItem.type === 'course' || 
+            currentItem.type === 'category') {
+          return; // Do nothing - keep current viewer content
+        }
+        
+        // Only reload if it's a different file
+        if (currentItem.id !== this.previousItemId) {
           this.previousItemId = currentItem.id;
           this.textContent = '';
           this.fileUrl = '';
@@ -287,6 +296,7 @@ export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
           this.loadContent();
         }
       } else if (!currentItem) {
+        // Clear viewer when nothing is selected
         this.fileUrl = '';
         this.textContent = '';
         this.previousItemId = null;
