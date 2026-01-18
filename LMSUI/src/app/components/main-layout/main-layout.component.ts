@@ -192,7 +192,7 @@ export class MainLayoutComponent {
     
     // Tell sidebar to expand to this item
     if (this.sidebarComponent) {
-      //this.sidebarComponent.expandToItem(result);
+      this.sidebarComponent.expandToItem(result);
     }
   }
 
