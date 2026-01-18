@@ -1,27 +1,47 @@
-import { Component, NgZone } from '@angular/core';
+import { Component, NgZone, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
+import { SearchResultsComponent } from '../search-results/search-results.component';
 import { CourseItem } from '../../models/course.model';
+import { SearchService, SearchResult } from '../../services/search.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, HeaderComponent, SidebarComponent, ViewerComponent],
+  imports: [
+    CommonModule, 
+    HeaderComponent, 
+    SidebarComponent, 
+    ViewerComponent,
+    SearchResultsComponent
+  ],
   template: `
     <div class="app-container" [class.resizing]="isResizing">
-      <app-header></app-header>
+      <app-header (search)="onSearch($event)"></app-header>
       <div class="content-container">
         <div class="sidebar-wrapper" [style.width.px]="sidebarWidth">
-          <app-sidebar (fileSelected)="onFileSelected($event)"></app-sidebar>
+          <app-sidebar 
+            #sidebar
+            (fileSelected)="onFileSelected($event)">
+          </app-sidebar>
         </div>
         <div class="divider" 
              (mousedown)="startResize($event)"
              [class.dragging]="isResizing">
         </div>
         <div class="viewer-wrapper">
-          <app-viewer [selectedItem]="selectedItem"></app-viewer>
+          @if (showSearchResults) {
+            <app-search-results 
+              [results]="searchResults"
+              (itemSelected)="navigateToItem($event)"
+              (close)="closeSearch()">
+            </app-search-results>
+          } @else {
+            <app-viewer [selectedItem]="selectedItem"></app-viewer>
+          }
         </div>
       </div>
     </div>
@@ -97,7 +117,8 @@ import { CourseItem } from '../../models/course.model';
       min-width: 0;
     }
 
-    .viewer-wrapper app-viewer {
+    .viewer-wrapper app-viewer,
+    .viewer-wrapper app-search-results {
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -116,14 +137,63 @@ import { CourseItem } from '../../models/course.model';
   `]
 })
 export class MainLayoutComponent {
+  @ViewChild('sidebar') sidebarComponent!: SidebarComponent;
+  
   selectedItem: CourseItem | null = null;
   sidebarWidth = 300;
   isResizing = false;
+  
+  // Search properties
+  searchResults: SearchResult[] = [];
+  showSearchResults = false;
 
-  constructor(private ngZone: NgZone) {}
+  constructor(
+    private ngZone: NgZone,
+    private searchService: SearchService,
+    private authService: AuthService
+  ) {}
 
   onFileSelected(item: CourseItem) {
     this.selectedItem = item;
+    this.showSearchResults = false; // Close search when file selected from tree
+  }
+
+  onSearch(query: string) {
+    if (!query || query.trim() === '') {
+      this.closeSearch();
+      return;
+    }
+
+    const userId = this.authService.currentUser?.id;
+    
+    this.searchService.search(query, userId).subscribe({
+      next: (results) => {
+        this.searchResults = results;
+        this.showSearchResults = true;
+      },
+      error: (error) => {
+        console.error('Search error:', error);
+        this.searchResults = [];
+        this.showSearchResults = true;
+      }
+    });
+  }
+
+  closeSearch() {
+    this.showSearchResults = false;
+    this.searchResults = [];
+  }
+
+  navigateToItem(result: SearchResult) {
+    console.log('Navigate to item:', result);
+    
+    // Close search results
+    this.closeSearch();
+    
+    // Tell sidebar to expand to this item
+    if (this.sidebarComponent) {
+      this.sidebarComponent.expandToItem(result);
+    }
   }
 
   startResize(event: MouseEvent) {

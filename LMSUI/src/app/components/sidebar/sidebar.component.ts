@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CourseService } from '../../services/course.service';
 import { CourseItem, Category, Course } from '../../models/course.model';
+import { SearchResult } from '../../services/search.service';
 
 interface TreeNode {
   id: number;
