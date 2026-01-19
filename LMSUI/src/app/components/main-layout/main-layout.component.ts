@@ -4,6 +4,8 @@ import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
 import { SearchResultsComponent } from '../search-results/search-results.component';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { CourseItem } from '../../models/course.model';
 import { SearchService, SearchResult } from '../../services/search.service';
 import { AuthService } from '../../services/auth.service';
@@ -16,11 +18,17 @@ import { AuthService } from '../../services/auth.service';
     HeaderComponent, 
     SidebarComponent, 
     ViewerComponent,
-    SearchResultsComponent
+    SearchResultsComponent,
+    MatButtonModule,
+    MatIconModule
   ],
   template: `
     <div class="app-container" [class.resizing]="isResizing">
-      <app-header (search)="onSearch($event)"></app-header>
+      <app-header 
+        (search)="onSearch($event)"
+        (searchingChange)="onSearchingChange($event)"
+        #header>
+      </app-header>
       <div class="content-container">
         <div class="sidebar-wrapper" [style.width.px]="sidebarWidth">
           <app-sidebar 
@@ -33,12 +41,22 @@ import { AuthService } from '../../services/auth.service';
              [class.dragging]="isResizing">
         </div>
         <div class="viewer-wrapper">
-          @if (showSearchResults) {
+          @if (showSearchResults && !isViewingSearchItem) {
             <app-search-results 
               [results]="searchResults"
               (itemSelected)="navigateToItem($event)"
               (close)="closeSearch()">
             </app-search-results>
+          } @else if (isViewingSearchItem) {
+            <div class="viewer-with-back">
+              <div class="back-bar">
+                <button mat-raised-button color="primary" (click)="goBackToResults()">
+                  <mat-icon>arrow_back</mat-icon>
+                  Back to Search Results
+                </button>
+              </div>
+              <app-viewer [selectedItem]="selectedItem"></app-viewer>
+            </div>
           } @else {
             <app-viewer [selectedItem]="selectedItem"></app-viewer>
           }
@@ -126,6 +144,25 @@ import { AuthService } from '../../services/auth.service';
       height: 100%;
     }
 
+    .viewer-with-back {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    .back-bar {
+      padding: 12px 16px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #ddd;
+      flex-shrink: 0;
+    }
+
+    .viewer-with-back app-viewer {
+      flex: 1;
+    }
+
     .app-container.resizing {
       user-select: none;
       cursor: col-resize;
@@ -138,14 +175,15 @@ import { AuthService } from '../../services/auth.service';
 })
 export class MainLayoutComponent {
   @ViewChild('sidebar') sidebarComponent!: SidebarComponent;
+  @ViewChild('header') headerComponent!: HeaderComponent;
   
   selectedItem: CourseItem | null = null;
   sidebarWidth = 300;
   isResizing = false;
   
-  // Search properties
   searchResults: SearchResult[] = [];
   showSearchResults = false;
+  isViewingSearchItem = false;
 
   constructor(
     private ngZone: NgZone,
@@ -155,7 +193,9 @@ export class MainLayoutComponent {
 
   onFileSelected(item: CourseItem) {
     this.selectedItem = item;
-    this.showSearchResults = false; // Close search when file selected from tree
+    if (!this.isViewingSearchItem) {
+      this.showSearchResults = false;
+    }
   }
 
   onSearch(query: string) {
@@ -170,30 +210,43 @@ export class MainLayoutComponent {
       next: (results) => {
         this.searchResults = results;
         this.showSearchResults = true;
+        this.isViewingSearchItem = false;
+        if (this.headerComponent) {
+          this.headerComponent.stopSearching();
+        }
       },
       error: (error) => {
         console.error('Search error:', error);
         this.searchResults = [];
         this.showSearchResults = true;
+        if (this.headerComponent) {
+          this.headerComponent.stopSearching();
+        }
       }
     });
+  }
+
+  onSearchingChange(searching: boolean) {
+    // Handle searching state if needed
   }
 
   closeSearch() {
     this.showSearchResults = false;
     this.searchResults = [];
+    this.isViewingSearchItem = false;
   }
 
   navigateToItem(result: SearchResult) {
     console.log('Navigate to item:', result);
+    this.isViewingSearchItem = true;
     
-    // Close search results
-    this.closeSearch();
-    
-    // Tell sidebar to expand to this item
     if (this.sidebarComponent) {
       this.sidebarComponent.expandToItem(result);
     }
+  }
+
+  goBackToResults() {
+    this.isViewingSearchItem = false;
   }
 
   startResize(event: MouseEvent) {

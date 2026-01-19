@@ -6,8 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatDividerModule } from '@angular/material/divider';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService, CurrentUser } from '../../services/auth.service';
 
@@ -22,15 +21,13 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
     MatIconModule,
     MatInputModule,
     MatFormFieldModule,
-    MatMenuModule,
-    MatDividerModule,
+    MatProgressSpinnerModule,
     RouterModule
   ],
   template: `
     <mat-toolbar color="primary" class="header-toolbar">
-      <span class="app-title">LMS v2</span>
+      <span class="app-title">Learning Management System V2.0</span>
       
-      <!-- Search Box (Center) -->
       <div class="search-container">
         <mat-form-field appearance="outline" class="search-field">
           <mat-icon matPrefix>search</mat-icon>
@@ -39,8 +36,10 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
             placeholder="Search files and courses..." 
             [(ngModel)]="searchQuery"
             (keyup.enter)="onSearch()"
-            (input)="onSearchInput()">
-          @if (searchQuery) {
+            [disabled]="searching">
+          @if (searching) {
+            <mat-spinner matSuffix diameter="20"></mat-spinner>
+          } @else if (searchQuery) {
             <button mat-icon-button matSuffix (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
@@ -48,67 +47,57 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
         </mat-form-field>
       </div>
 
-      <span class="spacer"></span>
-
-      <!-- User Info & Menu (Right) -->
       @if (currentUser) {
-        <div class="user-section">
+        <div class="nav-buttons">
           <span class="user-name">{{ currentUser.firstName }} {{ currentUser.lastName }}</span>
           
-          <button mat-icon-button [matMenuTriggerFor]="userMenu">
-            <mat-icon>account_circle</mat-icon>
+          <button mat-button routerLink="/">
+            <mat-icon>home</mat-icon>
+            Home
           </button>
           
-          <mat-menu #userMenu="matMenu">
-            <div class="user-menu-header">
-              <div class="user-info">
-                <strong>{{ currentUser.firstName }} {{ currentUser.lastName }}</strong>
-                <span>{{ currentUser.email }}</span>
-                <span class="user-role">{{ currentUser.role }}</span>
-              </div>
-            </div>
-            <mat-divider></mat-divider>
-            
-            @if (isAdmin) {
-              <button mat-menu-item routerLink="/admin">
-                <mat-icon>settings</mat-icon>
-                <span>Admin Panel</span>
-              </button>
-            }
-            
-            <button mat-menu-item (click)="logout()">
-              <mat-icon>exit_to_app</mat-icon>
-              <span>Logout</span>
+          @if (isAdmin) {
+            <button mat-button routerLink="/admin">
+              <mat-icon>settings</mat-icon>
+              Admin
             </button>
-          </mat-menu>
+          }
+          
+          <button mat-button (click)="logout()">
+            <mat-icon>exit_to_app</mat-icon>
+            Logout
+          </button>
         </div>
       } @else {
-        <button mat-raised-button color="accent" routerLink="/login">
-          <mat-icon>login</mat-icon>
-          Login
-        </button>
+        <div class="nav-buttons">
+          <button mat-raised-button color="accent" routerLink="/login">
+            <mat-icon>login</mat-icon>
+            Login
+          </button>
+        </div>
       }
     </mat-toolbar>
   `,
   styles: [`
     .header-toolbar {
-      display: flex;
+      display: grid;
+      grid-template-columns: 300px 1fr auto;
       align-items: center;
       padding: 0 24px;
-      gap: 16px;
       height: 64px;
+      gap: 24px;
     }
 
     .app-title {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 500;
       white-space: nowrap;
     }
 
     .search-container {
-      flex: 0 1 600px;
-      max-width: 600px;
-      margin: 0 auto;
+      justify-self: center;
+      width: 100%;
+      max-width: 700px;
     }
 
     .search-field {
@@ -142,61 +131,46 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
       color: rgba(255, 255, 255, 0.9);
     }
 
-    .spacer {
-      flex: 1 1 auto;
+    .search-field ::ng-deep mat-spinner {
+      margin-right: 8px;
     }
 
-    .user-section {
+    .search-field ::ng-deep mat-spinner circle {
+      stroke: white;
+    }
+
+    .nav-buttons {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      justify-self: end;
+      white-space: nowrap;
     }
 
     .user-name {
       font-size: 14px;
       color: rgba(255, 255, 255, 0.9);
-    }
-
-    .user-menu-header {
-      padding: 16px;
-      background: #f5f5f5;
-    }
-
-    .user-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .user-info strong {
-      font-size: 16px;
-      color: #333;
-    }
-
-    .user-info span {
-      font-size: 13px;
-      color: #666;
-    }
-
-    .user-role {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
       font-weight: 500;
-      background: #e3f2fd;
-      color: #1976d2;
-      margin-top: 4px;
-      width: fit-content;
+      margin-right: 12px;
+    }
+
+    .nav-buttons button {
+      color: white;
+    }
+
+    .nav-buttons button mat-icon {
+      margin-right: 4px;
     }
   `]
 })
 export class HeaderComponent implements OnInit {
   @Output() search = new EventEmitter<string>();
+  @Output() searchingChange = new EventEmitter<boolean>();
   
   currentUser: CurrentUser | null = null;
   searchQuery = '';
   isAdmin = false;
+  searching = false;
 
   constructor(
     private authService: AuthService,
@@ -212,20 +186,22 @@ export class HeaderComponent implements OnInit {
 
   onSearch() {
     if (this.searchQuery.trim()) {
+      this.searching = true;
+      this.searchingChange.emit(true);
       this.search.emit(this.searchQuery.trim());
     }
   }
 
-  onSearchInput() {
-    // Optional: implement real-time search with debounce
-    if (this.searchQuery.length > 2) {
-      // this.search.emit(this.searchQuery.trim());
-    }
+  stopSearching() {
+    this.searching = false;
+    this.searchingChange.emit(false);
   }
 
   clearSearch() {
     this.searchQuery = '';
-    this.search.emit(''); // Clear search results
+    this.searching = false;
+    this.searchingChange.emit(false);
+    this.search.emit('');
   }
 
   logout() {

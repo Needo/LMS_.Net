@@ -15,7 +15,7 @@ import { SearchResult } from '../../services/search.service';
         <div class="title-section">
           <mat-icon>search</mat-icon>
           <h2>Search Results</h2>
-          <span class="count">({{ results.length }} items found)</span>
+          <span class="count">({{ results.length }} items)</span>
         </div>
         <button mat-icon-button (click)="onClose()">
           <mat-icon>close</mat-icon>
@@ -26,7 +26,6 @@ import { SearchResult } from '../../services/search.service';
         <div class="empty-state">
           <mat-icon>search_off</mat-icon>
           <p>No results found</p>
-          <p class="hint">Try different search terms</p>
         </div>
       }
 
@@ -67,9 +66,9 @@ import { SearchResult } from '../../services/search.service';
           </ng-container>
 
           <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let result">
-              <button mat-icon-button (click)="onItemSelected(result)" matTooltip="Open in tree">
+              <button mat-icon-button (click)="onItemSelected(result)">
                 <mat-icon>arrow_forward</mat-icon>
               </button>
             </td>
@@ -96,33 +95,34 @@ import { SearchResult } from '../../services/search.service';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 24px;
+      padding: 10px 20px;
       border-bottom: 2px solid #e0e0e0;
       background: #f5f5f5;
+      flex-shrink: 0;
     }
 
     .title-section {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .title-section mat-icon {
-      font-size: 28px;
-      width: 28px;
-      height: 28px;
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
       color: #1976d2;
     }
 
     .header h2 {
       margin: 0;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 500;
       color: #333;
     }
 
     .count {
-      font-size: 14px;
+      font-size: 12px;
       color: #666;
     }
 
@@ -144,20 +144,36 @@ import { SearchResult } from '../../services/search.service';
       color: #ccc;
     }
 
-    .empty-state .hint {
-      font-size: 13px;
-      color: #bbb;
-    }
-
     .results-table {
       width: 100%;
       flex: 1;
       overflow: auto;
     }
 
+    .mat-mdc-row {
+      height: 36px !important;
+      min-height: 36px !important;
+    }
+
+    .mat-mdc-header-row {
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+
+    .mat-mdc-cell {
+      padding: 4px 10px !important;
+      font-size: 13px;
+    }
+
+    .mat-mdc-header-cell {
+      padding: 6px 10px !important;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
     .clickable-row {
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.15s;
     }
 
     .clickable-row:hover {
@@ -165,61 +181,39 @@ import { SearchResult } from '../../services/search.service';
     }
 
     .mat-column-icon {
-      width: 48px;
-      padding-left: 16px;
+      width: 36px;
+      padding-left: 12px !important;
     }
 
     .mat-column-type {
-      width: 100px;
+      width: 80px;
     }
 
     .mat-column-size {
-      width: 100px;
+      width: 70px;
     }
 
     .mat-column-actions {
-      width: 80px;
-      text-align: center;
+      width: 50px;
+      text-align: right;
+      padding-right: 12px !important;
     }
 
     .type-badge {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 10px;
       font-weight: 500;
       text-transform: uppercase;
     }
 
-    .type-badge.video {
-      background: #ffebee;
-      color: #c62828;
-    }
-
-    .type-badge.audio {
-      background: #f3e5f5;
-      color: #6a1b9a;
-    }
-
-    .type-badge.document {
-      background: #e3f2fd;
-      color: #1565c0;
-    }
-
-    .type-badge.ebook {
-      background: #fff3e0;
-      color: #e65100;
-    }
-
-    .type-badge.image {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-
-    .type-badge.folder {
-      background: #fff9c4;
-      color: #f57f17;
-    }
+    .type-badge.video { background: #ffebee; color: #c62828; }
+    .type-badge.audio { background: #f3e5f5; color: #6a1b9a; }
+    .type-badge.document { background: #e3f2fd; color: #1565c0; }
+    .type-badge.ebook { background: #fff3e0; color: #e65100; }
+    .type-badge.image { background: #e8f5e9; color: #2e7d32; }
+    .type-badge.folder { background: #fff9c4; color: #f57f17; }
   `]
 })
 export class SearchResultsComponent {
@@ -240,7 +234,6 @@ export class SearchResultsComponent {
   getIcon(result: SearchResult): string {
     const ext = result.extension.toLowerCase();
     const type = result.type;
-
     if (type === 'folder') return 'folder';
     if (type === 'video' || ['.mp4', '.avi', '.mkv'].includes(ext)) return 'play_circle_outline';
     if (type === 'audio' || ['.mp3', '.wav'].includes(ext)) return 'audiotrack';
@@ -253,7 +246,6 @@ export class SearchResultsComponent {
 
   getIconColor(result: SearchResult): string {
     const type = result.type;
-    
     if (type === 'folder') return '#ffa726';
     if (type === 'video') return '#e53935';
     if (type === 'audio') return '#5e35b1';
