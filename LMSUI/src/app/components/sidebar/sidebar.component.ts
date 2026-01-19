@@ -4,6 +4,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CourseService } from '../../services/course.service';
+import { UserService } from '../../services/user.service';
+import { AuthService } from '../../services/auth.service';
 import { CourseItem, Category, Course } from '../../models/course.model';
 import { SearchResult } from '../../services/search.service';
 
@@ -124,15 +126,19 @@ export class TreeNodeComponent {
   template: `
     <div class="sidebar">
       <h3>Categories</h3>
+      
       @if (loading) {
         <div class="loading"><mat-spinner diameter="40"></mat-spinner><p>Loading categories...</p></div>
       }
+      
       @if (error) {
         <div class="error-message"><mat-icon>error</mat-icon><p>{{ error }}</p><button mat-raised-button color="primary" (click)="loadCategories()">Retry</button></div>
       }
+      
       @if (!loading && !error && categories.length === 0) {
         <div class="empty-state"><mat-icon>category</mat-icon><p>No categories found</p><p class="hint">Use Admin panel to scan courses</p></div>
       }
+      
       @if (!loading && !error && categories.length > 0) {
         <div class="tree-container">
           @for (category of categories; track category.id) {
@@ -162,14 +168,41 @@ export class SidebarComponent implements OnInit {
   error = '';
   selectedItemId: number | null = null;
   loadedNodes = new Set<string>();
+  subscribedCourseIds: number[] = [];
 
-  constructor(private courseService: CourseService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private courseService: CourseService,
+    private userService: UserService,
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() { this.loadCategories(); }
 
   loadCategories() {
     this.loading = true;
     this.error = '';
+    
+    const currentUser = this.authService.currentUser;
+    
+    if (currentUser && currentUser.role !== 'Admin') {
+      this.userService.getSubscribedCourseIds(currentUser.id).subscribe({
+        next: (courseIds) => {
+          this.subscribedCourseIds = courseIds;
+          this.loadCategoriesData();
+        },
+        error: (err) => {
+          console.error('Error loading subscriptions:', err);
+          this.loadCategoriesData();
+        }
+      });
+    } else {
+      this.subscribedCourseIds = [];
+      this.loadCategoriesData();
+    }
+  }
+
+  loadCategoriesData() {
     this.courseService.getCategories().subscribe({
       next: (categories) => {
         this.categories = categories.map(cat => ({ id: cat.id, name: cat.name, path: cat.path, type: 'category', extension: '', size: 0, children: [], expanded: false, level: 0 }));
@@ -198,7 +231,11 @@ export class SidebarComponent implements OnInit {
     this.cdr.detectChanges();
     this.courseService.getCoursesByCategory(categoryNode.id).subscribe({
       next: (courses) => {
-        categoryNode.children = courses.map(course => ({ id: course.id, courseId: course.id, name: course.name, path: course.path, type: 'course', extension: '', size: 0, children: [], expanded: false, level: (categoryNode.level || 0) + 1 }));
+        let filteredCourses = courses;
+        if (this.subscribedCourseIds.length > 0) {
+          filteredCourses = courses.filter(c => this.subscribedCourseIds.includes(c.id));
+        }
+        categoryNode.children = filteredCourses.map(course => ({ id: course.id, courseId: course.id, name: course.name, path: course.path, type: 'course', extension: '', size: 0, children: [], expanded: false, level: (categoryNode.level || 0) + 1 }));
         categoryNode.loading = false;
         this.loadedNodes.add(nodeKey);
         this.cdr.detectChanges();
@@ -269,7 +306,17 @@ export class SidebarComponent implements OnInit {
       if (this.loadedNodes.has(nodeKey)) { resolve(); return; }
       if (node.type === 'category') {
         this.courseService.getCoursesByCategory(node.id).subscribe({
-          next: (courses) => { node.children = courses.map(c => ({ id: c.id, courseId: c.id, name: c.name, path: c.path, type: 'course', extension: '', size: 0, children: [], expanded: false, level: (node.level || 0) + 1 })); node.loading = false; this.loadedNodes.add(nodeKey); this.cdr.detectChanges(); resolve(); },
+          next: (courses) => {
+            let filteredCourses = courses;
+            if (this.subscribedCourseIds.length > 0) {
+              filteredCourses = courses.filter(c => this.subscribedCourseIds.includes(c.id));
+            }
+            node.children = filteredCourses.map(c => ({ id: c.id, courseId: c.id, name: c.name, path: c.path, type: 'course', extension: '', size: 0, children: [], expanded: false, level: (node.level || 0) + 1 }));
+            node.loading = false;
+            this.loadedNodes.add(nodeKey);
+            this.cdr.detectChanges();
+            resolve();
+          },
           error: () => { node.loading = false; this.cdr.detectChanges(); resolve(); }
         });
       } else if (node.type === 'course') {
