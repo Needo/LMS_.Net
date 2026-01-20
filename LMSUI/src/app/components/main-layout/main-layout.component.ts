@@ -171,6 +171,10 @@ import { AuthService } from '../../services/auth.service';
     .app-container.resizing * {
       cursor: col-resize !important;
     }
+
+    .app-container.resizing iframe {
+      pointer-events: none;
+    }
   `]
 })
 export class MainLayoutComponent {
