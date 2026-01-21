@@ -1,4 +1,4 @@
-import { Component, NgZone, ViewChild } from '@angular/core';
+import { Component, NgZone, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
@@ -41,6 +41,9 @@ import { AuthService } from '../../services/auth.service';
              [class.dragging]="isResizing">
         </div>
         <div class="viewer-wrapper">
+          @if (isResizing) {
+            <div class="resize-overlay"></div>
+          }
           @if (showSearchResults && !isViewingSearchItem) {
             <app-search-results 
               [results]="searchResults"
@@ -133,6 +136,17 @@ import { AuthService } from '../../services/auth.service';
       height: 100%;
       overflow: hidden;
       min-width: 0;
+      position: relative;
+    }
+
+    .resize-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      background: transparent;
     }
 
     .viewer-wrapper app-viewer,
@@ -171,10 +185,6 @@ import { AuthService } from '../../services/auth.service';
     .app-container.resizing * {
       cursor: col-resize !important;
     }
-
-    .app-container.resizing iframe {
-      pointer-events: none;
-    }
   `]
 })
 export class MainLayoutComponent {
@@ -194,6 +204,13 @@ export class MainLayoutComponent {
     private searchService: SearchService,
     private authService: AuthService
   ) {}
+
+  @HostListener('document:mouseup')
+  onDocumentMouseUp() {
+    if (this.isResizing) {
+      this.isResizing = false;
+    }
+  }
 
   onFileSelected(item: CourseItem) {
     this.selectedItem = item;
@@ -260,31 +277,19 @@ export class MainLayoutComponent {
     const startX = event.clientX;
     const startWidth = this.sidebarWidth;
 
-    this.ngZone.runOutsideAngular(() => {
-      const onMouseMove = (moveEvent: MouseEvent) => {
-        const delta = moveEvent.clientX - startX;
-        const newWidth = startWidth + delta;
-        const constrainedWidth = Math.min(600, Math.max(200, newWidth));
-        
-        const sidebarElement = document.querySelector('.sidebar-wrapper') as HTMLElement;
-        if (sidebarElement) {
-          sidebarElement.style.width = `${constrainedWidth}px`;
-        }
-        
-        this.sidebarWidth = constrainedWidth;
-      };
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const newWidth = startWidth + delta;
+      this.sidebarWidth = Math.min(600, Math.max(200, newWidth));
+    };
 
-      const onMouseUp = () => {
-        this.ngZone.run(() => {
-          this.isResizing = false;
-        });
+    const onMouseUp = () => {
+      this.isResizing = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
 
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-      };
-
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   }
 }

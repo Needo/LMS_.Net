@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,6 +11,7 @@ import ePub from 'epubjs';
   selector: 'app-viewer',
   standalone: true,
   imports: [CommonModule, MatIconModule, MatButtonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="viewer">
       @if (!selectedItem) {
@@ -50,7 +51,14 @@ import ePub from 'epubjs';
           }
           
           @if (selectedItem.type === 'document' && selectedItem.extension === '.pdf') {
-            <iframe [src]="sanitizeUrl(fileUrl)" class="document-viewer"></iframe>
+            @if (sanitizedFileUrl) {
+              <iframe [src]="sanitizedFileUrl" class="document-viewer"></iframe>
+            } @else {
+              <div class="error-state">
+                <mat-icon>error</mat-icon>
+                <p>Failed to load PDF</p>
+              </div>
+            }
           }
           
           @if (selectedItem.type === 'document' && selectedItem.extension === '.txt') {
@@ -60,7 +68,7 @@ import ePub from 'epubjs';
           }
           
           @if (selectedItem.type === 'document' && selectedItem.extension === '.html') {
-            <iframe [src]="sanitizeUrl(fileUrl)" class="document-viewer"></iframe>
+            <iframe [src]="sanitizedFileUrl" class="document-viewer"></iframe>
           }
           
           <!-- EPUB viewer -->
@@ -121,6 +129,23 @@ import ePub from 'epubjs';
       flex-direction: column;
       height: 100%;
       overflow: hidden;
+    }
+
+    .error-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+      color: #c62828;
+    }
+
+    .error-state mat-icon {
+      font-size: 64px;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
     }
 
     .file-header {
@@ -253,6 +278,7 @@ export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('epubViewer') epubViewerRef?: ElementRef;
   
   fileUrl: string = '';
+  sanitizedFileUrl: SafeResourceUrl | null = null;
   textContent: string = '';
   private previousItemId: number | null = null;
 
@@ -291,6 +317,7 @@ export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
           this.previousItemId = currentItem.id;
           this.textContent = '';
           this.fileUrl = '';
+          this.sanitizedFileUrl = null;
           this.cleanupEpub();
           this.cdr.detectChanges();
           this.loadContent();
@@ -298,6 +325,7 @@ export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
       } else if (!currentItem) {
         // Clear viewer when nothing is selected
         this.fileUrl = '';
+        this.sanitizedFileUrl = null;
         this.textContent = '';
         this.previousItemId = null;
         this.cleanupEpub();
@@ -308,7 +336,24 @@ export class ViewerComponent implements OnChanges, AfterViewInit, OnDestroy {
   private loadContent() {
     if (!this.selectedItem) return;
 
-    this.fileUrl = this.courseService.getFileUrl(this.selectedItem.path);
+    try {
+      this.fileUrl = this.courseService.getFileUrl(this.selectedItem.path);
+      console.log('Loading file URL:', this.fileUrl);
+      
+      if (this.fileUrl && this.fileUrl.startsWith('http')) {
+        this.sanitizedFileUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.fileUrl);
+        console.log('Sanitized URL created successfully');
+      } else {
+        console.error('Invalid file URL:', this.fileUrl);
+        this.sanitizedFileUrl = null;
+      }
+      
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('Error in loadContent:', error);
+      this.sanitizedFileUrl = null;
+      this.cdr.detectChanges();
+    }
 
     if (this.selectedItem.extension === '.txt') {
       fetch(this.fileUrl)
