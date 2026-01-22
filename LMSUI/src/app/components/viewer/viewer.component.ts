@@ -5,12 +5,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { CourseItem } from '../../models/course.model';
 import { CourseService } from '../../services/course.service';
+import { PdfViewerComponent } from '../pdf-viewer/pdf-viewer.component';
 import ePub from 'epubjs';
 
 @Component({
   selector: 'app-viewer',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatButtonModule],
+  imports: [CommonModule, MatIconModule, MatButtonModule, PdfViewerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="viewer">
@@ -51,14 +52,7 @@ import ePub from 'epubjs';
           }
           
           @if (selectedItem.type === 'document' && selectedItem.extension === '.pdf') {
-            @if (sanitizedFileUrl) {
-              <iframe [src]="sanitizedFileUrl" class="document-viewer"></iframe>
-            } @else {
-              <div class="error-state">
-                <mat-icon>error</mat-icon>
-                <p>Failed to load PDF</p>
-              </div>
-            }
+            <app-pdf-viewer [pdfUrl]="fileUrl"></app-pdf-viewer>
           }
           
           @if (selectedItem.type === 'document' && selectedItem.extension === '.txt') {
