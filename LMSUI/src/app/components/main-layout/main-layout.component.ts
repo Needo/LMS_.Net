@@ -86,11 +86,12 @@ import { AuthService } from '../../services/auth.service';
     .sidebar-wrapper {
       height: 100%;
       overflow: hidden;
-      background: #f5f5f5;
-      border-right: 1px solid #ddd;
+      background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+      border-right: 1px solid #e0e0e0;
       flex-shrink: 0;
       min-width: 200px;
       max-width: 600px;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
     }
 
     .sidebar-wrapper app-sidebar {
@@ -101,20 +102,22 @@ import { AuthService } from '../../services/auth.service';
 
     .divider {
       width: 6px;
-      background: #ccc;
+      background: linear-gradient(180deg, #e0e0e0 0%, #bdbdbd 100%);
       cursor: col-resize;
       flex-shrink: 0;
       position: relative;
       z-index: 10;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
     }
 
     .divider:hover {
-      background: #999;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      width: 8px;
     }
 
     .divider.dragging {
-      background: #666;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      width: 8px;
     }
 
     .divider::before {
@@ -167,10 +170,21 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .back-bar {
-      padding: 12px 16px;
-      background: #f9f9f9;
-      border-bottom: 1px solid #ddd;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .back-bar button {
+      color: white;
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .back-bar button:hover {
+      background: rgba(255, 255, 255, 0.2);
     }
 
     .viewer-with-back app-viewer {
