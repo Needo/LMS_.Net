@@ -33,24 +33,31 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
           <span class="version-badge">v2.0</span>
         </div>
         
-        <div class="search-container">
-          <mat-form-field appearance="outline" class="search-field">
-            <mat-icon matPrefix class="search-icon">search</mat-icon>
-            <input 
-              matInput 
-              placeholder="Search files and courses..." 
-              [(ngModel)]="searchQuery"
-              (keyup.enter)="onSearch()"
-              [disabled]="searching">
-            @if (searching) {
-              <mat-spinner matSuffix diameter="20"></mat-spinner>
-            } @else if (searchQuery) {
-              <button mat-icon-button matSuffix (click)="clearSearch()" class="clear-btn">
-                <mat-icon>close</mat-icon>
-              </button>
-            }
-          </mat-form-field>
-        </div>
+        @if (!isAdminRoute) {
+          <div class="search-container">
+            <mat-form-field appearance="outline" class="search-field">
+              <mat-icon matPrefix class="search-icon">search</mat-icon>
+              <input 
+                matInput 
+                placeholder="Search files and courses..." 
+                [(ngModel)]="searchQuery"
+                (keyup.enter)="onSearch()"
+                [disabled]="searching">
+              @if (searching) {
+                <mat-spinner matSuffix diameter="20"></mat-spinner>
+              } @else if (searchQuery) {
+                <button mat-icon-button matSuffix (click)="clearSearch()" class="clear-btn">
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+          </div>
+        } @else {
+          <div class="admin-title">
+            <mat-icon>admin_panel_settings</mat-icon>
+            <span>Admin Panel</span>
+          </div>
+        }
 
         @if (currentUser) {
           <div class="user-section">
@@ -62,16 +69,25 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
             </div>
             
             <div class="nav-buttons">
-              <button mat-stroked-button routerLink="/" class="nav-btn">
-                <mat-icon>home</mat-icon>
-                <span>Home</span>
-              </button>
-              
-              @if (isAdmin) {
-                <button mat-stroked-button routerLink="/admin" class="nav-btn admin-btn">
-                  <mat-icon>admin_panel_settings</mat-icon>
-                  <span>Admin</span>
+              @if (!isAdminRoute) {
+                <button mat-stroked-button routerLink="/" class="nav-btn">
+                  <mat-icon>home</mat-icon>
+                  <span>Home</span>
                 </button>
+                
+                @if (isAdmin) {
+                  <button mat-stroked-button routerLink="/admin" class="nav-btn admin-btn">
+                    <mat-icon>admin_panel_settings</mat-icon>
+                    <span>Admin</span>
+                  </button>
+                }
+              } @else {
+                @if (isAdmin) {
+                  <button mat-stroked-button routerLink="/" class="nav-btn">
+                    <mat-icon>arrow_back</mat-icon>
+                    <span>Back to Client</span>
+                  </button>
+                }
               }
               
               <button mat-stroked-button (click)="logout()" class="nav-btn logout-btn">
@@ -143,6 +159,23 @@ import { AuthService, CurrentUser } from '../../services/auth.service';
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.5px;
+    }
+
+    /* Admin Title */
+    .admin-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: white;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .admin-title mat-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
     }
 
     /* Search Section */
@@ -320,17 +353,26 @@ export class HeaderComponent implements OnInit {
   searchQuery = '';
   isAdmin = false;
   searching = false;
+  isAdminRoute = false;
 
   constructor(
     private authService: AuthService,
     private router: Router
-  ) {}
+  ) {
+    // Watch for route changes
+    this.router.events.subscribe(() => {
+      this.isAdminRoute = this.router.url.startsWith('/admin');
+    });
+  }
 
   ngOnInit() {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
       this.isAdmin = this.authService.isAdmin;
     });
+    
+    // Set initial route state
+    this.isAdminRoute = this.router.url.startsWith('/admin');
   }
 
   getInitials(firstName: string, lastName: string): string {

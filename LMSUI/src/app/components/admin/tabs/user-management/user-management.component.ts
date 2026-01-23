@@ -279,7 +279,7 @@ export class UserManagementComponent implements OnInit {
   ],
   template: `
     <h2 mat-dialog-title>{{ data.mode === 'add' ? 'Add User' : 'Edit User' }}</h2>
-    <mat-dialog-content>
+    <mat-dialog-content class="dialog-content">
       <form [formGroup]="userForm">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Email</mat-label>
@@ -333,6 +333,15 @@ export class UserManagementComponent implements OnInit {
     </mat-dialog-actions>
   `,
   styles: [`
+    :host ::ng-deep .mat-mdc-dialog-title {
+      margin-bottom: 24px;
+    }
+
+    .dialog-content {
+      padding-top: 24px !important;
+      min-height: 50px;
+    }
+
     .full-width {
       width: 100%;
       margin-bottom: 16px;
