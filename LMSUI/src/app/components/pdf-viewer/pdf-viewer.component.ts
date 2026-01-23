@@ -33,15 +33,23 @@ import * as pdfjsLib from 'pdfjs-dist';
           <button mat-icon-button (click)="nextPage()" [disabled]="currentPage >= totalPages">
             <mat-icon>chevron_right</mat-icon>
           </button>
-          <button mat-icon-button (click)="zoomOut()" [disabled]="scale <= 0.5">
+          <div class="divider"></div>
+          <button mat-icon-button (click)="zoomOut()" [disabled]="scale <= 0.5" title="Zoom Out">
             <mat-icon>zoom_out</mat-icon>
           </button>
           <span class="zoom-info">{{ (scale * 100).toFixed(0) }}%</span>
-          <button mat-icon-button (click)="zoomIn()" [disabled]="scale >= 3">
+          <button mat-icon-button (click)="zoomIn()" [disabled]="scale >= 3" title="Zoom In">
             <mat-icon>zoom_in</mat-icon>
           </button>
+          <div class="divider"></div>
+          <button mat-icon-button (click)="resetZoom()" title="Reset Zoom (100%)">
+            <mat-icon>restart_alt</mat-icon>
+          </button>
           <button mat-icon-button (click)="fitToWidth()" title="Fit to Width">
-            <mat-icon>fit_screen</mat-icon>
+            <mat-icon>width_wide</mat-icon>
+          </button>
+          <button mat-icon-button (click)="fitToHeight()" title="Fit to Height">
+            <mat-icon>height</mat-icon>
           </button>
         </div>
         
@@ -113,8 +121,19 @@ import * as pdfjsLib from 'pdfjs-dist';
       color: rgba(255, 255, 255, 0.9);
     }
 
+    .pdf-toolbar button:disabled {
+      opacity: 0.3;
+    }
+
     .pdf-toolbar button.active {
       background: rgba(255, 255, 255, 0.1);
+    }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.2);
+      margin: 0 4px;
     }
 
     .page-info, .zoom-info {
@@ -252,9 +271,9 @@ export class PdfViewerComponent implements OnInit, OnChanges, OnDestroy {
       this.loading = false;
       this.cdr.detectChanges();
       
-      // Wait for DOM to be ready, then render at fit-to-page (height fit)
+      // Wait for DOM to be ready, then render at fit-to-height
       setTimeout(() => {
-        this.fitToPage();
+        this.fitToHeight();
       }, 300);
     } catch (error: any) {
       this.loading = false;
@@ -338,21 +357,20 @@ export class PdfViewerComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  fitToPage() {
+  fitToHeight() {
     if (!this.canvasContainerRef || !this.pdfDocument) return;
     
     this.pdfDocument.getPage(this.currentPage).then((page: any) => {
-      const containerWidth = this.canvasContainerRef.nativeElement.clientWidth - 40;
       const containerHeight = this.canvasContainerRef.nativeElement.clientHeight - 40;
       const viewport = page.getViewport({ scale: 1 });
-      
-      const scaleWidth = containerWidth / viewport.width;
-      const scaleHeight = containerHeight / viewport.height;
-      
-      // Use the smaller scale to fit the entire page
-      this.scale = Math.min(scaleWidth, scaleHeight);
+      this.scale = containerHeight / viewport.height;
       this.renderPage();
     });
+  }
+
+  resetZoom() {
+    this.scale = 1.0;
+    this.renderPage();
   }
 
   toggleOutline() {
@@ -361,7 +379,7 @@ export class PdfViewerComponent implements OnInit, OnChanges, OnDestroy {
     // Re-render the page when panel opens/closes to adjust to new dimensions
     if (this.pdfDocument && this.canvasRef) {
       setTimeout(() => {
-        this.fitToPage();
+        this.fitToHeight();
       }, 150);
     }
   }
