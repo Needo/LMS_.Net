@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.angular/
+.env
+*.db
+*.sqlite
+bin/
+obj/
+appsettings.Development.json
